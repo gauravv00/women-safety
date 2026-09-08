@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Women Safety SOS</string>
+    <string name="sos_notification_channel_id">sos_service_channel</string>
+    <string name="sos_notification_channel_name">Emergency SOS Tracking</string>
+</resources>
