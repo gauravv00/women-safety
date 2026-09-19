@@ -2,6 +2,7 @@ package com.womensafety.sos.ui.screens.map
 
 import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,18 +15,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.womensafety.sos.ui.components.AppTopBar
+import com.womensafety.sos.ui.components.EmergencyCallPanel
 import com.womensafety.sos.ui.components.OsmMap
 import com.womensafety.sos.ui.theme.AlertRed
 import com.womensafety.sos.ui.theme.DarkBackground
@@ -41,6 +49,7 @@ import com.womensafety.sos.ui.theme.DarkSurface
 import com.womensafety.sos.ui.theme.TrustBlue
 import org.osmdroid.util.GeoPoint
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LiveTrackingScreen(
     viewModel: LiveTrackingViewModel = viewModel()
@@ -50,6 +59,10 @@ fun LiveTrackingScreen(
     val debouncedLocation by viewModel.debouncedLocation.collectAsState()
     val history by viewModel.locationHistory.collectAsState()
     val isServiceRunning by viewModel.isServiceRunning.collectAsState()
+    val contacts by viewModel.contacts.collectAsState()
+
+    var showCallPanel by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Use debounced location for map rendering (filters GPS jitter < 5m)
     // Fall back to raw location for display coordinates
@@ -121,19 +134,41 @@ fun LiveTrackingScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Button(
-                        onClick = { shareLiveLocation() },
-                        colors = ButtonDefaults.buttonColors(containerColor = TrustBlue),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.Share, contentDescription = "Share", tint = Color.White)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Share Live Location Link", color = Color.White, fontWeight = FontWeight.Bold)
+                        Button(
+                            onClick = { showCallPanel = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.Call, contentDescription = "Emergency Call", tint = Color.White)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Emergency Call", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = { shareLiveLocation() },
+                            colors = ButtonDefaults.buttonColors(containerColor = TrustBlue),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.Share, contentDescription = "Share", tint = Color.White)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Share Link", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
+            }
+
+            if (showCallPanel) {
+                EmergencyCallPanel(
+                    sheetState = sheetState,
+                    contacts = contacts,
+                    onDismiss = { showCallPanel = false }
+                )
             }
         }
     }

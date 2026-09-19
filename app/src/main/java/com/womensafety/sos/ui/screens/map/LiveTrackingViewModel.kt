@@ -9,9 +9,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
 
+import com.womensafety.sos.data.entity.TrustedContact
+import com.womensafety.sos.di.ServiceLocator
+
 class LiveTrackingViewModel : ViewModel() {
     val currentLocation: StateFlow<Location?> = EmergencyForegroundService.currentLocation
     val isServiceRunning: StateFlow<Boolean> = EmergencyForegroundService.isServiceRunning
+
+    val contacts: StateFlow<List<TrustedContact>> =
+        ServiceLocator.repository.getAllContacts()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**
      * Distinct location history to prevent the UI from processing
