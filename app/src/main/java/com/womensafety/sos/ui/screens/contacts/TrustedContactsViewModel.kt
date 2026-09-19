@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+import com.womensafety.sos.data.util.PhoneUtils
+
 class TrustedContactsViewModel(
     private val repository: SafetyRepository = ServiceLocator.repository
 ) : ViewModel() {
@@ -18,12 +20,15 @@ class TrustedContactsViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun addContact(name: String, phoneNumber: String, relationship: String) {
+        val cleanPhone = PhoneUtils.sanitizePhoneNumber(phoneNumber)
+        if (cleanPhone.isBlank()) return
+
         viewModelScope.launch {
             val currentList = repository.getContactsList()
             val newContact = TrustedContact(
-                name = name,
-                phoneNumber = phoneNumber,
-                relationship = relationship,
+                name = name.trim(),
+                phoneNumber = cleanPhone,
+                relationship = relationship.trim(),
                 priorityRank = currentList.size + 1
             )
             repository.addContact(newContact)

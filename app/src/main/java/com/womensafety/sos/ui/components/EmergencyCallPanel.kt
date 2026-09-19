@@ -61,15 +61,17 @@ fun EmergencyCallPanel(
     val context = LocalContext.current
 
     fun initiateCall(phoneNumber: String) {
+        val cleanPhone = com.womensafety.sos.data.util.PhoneUtils.sanitizePhoneNumber(phoneNumber)
+        if (cleanPhone.isBlank()) return
         try {
             val intent = Intent(Intent.ACTION_CALL).apply {
-                data = Uri.parse("tel:$phoneNumber")
+                data = Uri.parse("tel:$cleanPhone")
             }
             context.startActivity(intent)
         } catch (e: Exception) {
             Log.e("EmergencyCallPanel", "CALL_PHONE permission unavailable, launching DIAL: ${e.localizedMessage}")
             val dialIntent = Intent(Intent.ACTION_DIAL).apply {
-                data = Uri.parse("tel:$phoneNumber")
+                data = Uri.parse("tel:$cleanPhone")
             }
             context.startActivity(dialIntent)
         }

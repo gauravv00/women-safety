@@ -144,11 +144,14 @@ class SafetyRepositoryImpl(
         }
 
         contacts.forEach { contact ->
-            try {
-                smsManager?.sendTextMessage(contact.phoneNumber, null, message, null, null)
-                Log.d(TAG, "Emergency SMS dispatched to ${contact.phoneNumber}")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed sending SMS to ${contact.phoneNumber}: ${e.localizedMessage}")
+            val cleanPhone = com.womensafety.sos.data.util.PhoneUtils.sanitizePhoneNumber(contact.phoneNumber)
+            if (cleanPhone.isNotBlank()) {
+                try {
+                    smsManager?.sendTextMessage(cleanPhone, null, message, null, null)
+                    Log.d(TAG, "Emergency SMS dispatched to $cleanPhone")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed sending SMS to $cleanPhone: ${e.localizedMessage}")
+                }
             }
         }
     }

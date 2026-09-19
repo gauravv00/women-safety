@@ -205,16 +205,18 @@ class EmergencyForegroundService : Service() {
     }
 
     private fun makeEmergencyPhoneCall(phoneNumber: String) {
+        val cleanPhone = com.womensafety.sos.data.util.PhoneUtils.sanitizePhoneNumber(phoneNumber)
+        if (cleanPhone.isBlank()) return
         try {
             val callIntent = Intent(Intent.ACTION_CALL).apply {
-                data = Uri.parse("tel:$phoneNumber")
+                data = Uri.parse("tel:$cleanPhone")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             startActivity(callIntent)
         } catch (e: Exception) {
             Log.e("EmergencyService", "Call permission absent or call failed, falling back to dialer: ${e.localizedMessage}")
             val dialIntent = Intent(Intent.ACTION_DIAL).apply {
-                data = Uri.parse("tel:$phoneNumber")
+                data = Uri.parse("tel:$cleanPhone")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             startActivity(dialIntent)
