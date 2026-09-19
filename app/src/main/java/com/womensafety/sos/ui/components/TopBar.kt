@@ -45,6 +45,7 @@ fun AppTopBar(
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = DarkSurface
-        )
+        ),
+        windowInsets = TopAppBarDefaults.windowInsets
     )
 }

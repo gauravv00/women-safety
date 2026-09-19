@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -59,7 +60,8 @@ fun SafetyCheckInScreen(
     val formattedTime = String.format("%02d:%02d", minutes, seconds)
 
     Scaffold(
-        topBar = { AppTopBar(title = "SAFETY CHECK-IN TIMER") }
+        topBar = { AppTopBar(title = "SAFETY CHECK-IN TIMER") },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
         Box(
             modifier = Modifier

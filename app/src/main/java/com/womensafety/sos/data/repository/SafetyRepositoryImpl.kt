@@ -35,15 +35,15 @@ class SafetyRepositoryImpl(
         contactDao.insertContact(contact)
     }
 
-    override suspend fun updateContact(contact: TrustedContact) = withContext(Dispatchers.IO) {
+    override suspend fun updateContact(contact: TrustedContact): Unit = withContext(Dispatchers.IO) {
         contactDao.updateContact(contact)
     }
 
-    override suspend fun deleteContact(id: Long) = withContext(Dispatchers.IO) {
+    override suspend fun deleteContact(id: Long): Unit = withContext(Dispatchers.IO) {
         contactDao.deleteById(id)
     }
 
-    override suspend fun reorderContacts(contacts: List<TrustedContact>) = withContext(Dispatchers.IO) {
+    override suspend fun reorderContacts(contacts: List<TrustedContact>): Unit = withContext(Dispatchers.IO) {
         contacts.forEachIndexed { index, contact ->
             contactDao.updateContact(contact.copy(priorityRank = index + 1))
         }
@@ -73,7 +73,7 @@ class SafetyRepositoryImpl(
         id
     }
 
-    override suspend fun resolveIncident(id: Long) = withContext(Dispatchers.IO) {
+    override suspend fun resolveIncident(id: Long): Unit = withContext(Dispatchers.IO) {
         incidentDao.resolveIncident(id)
         try {
             val db = FirebaseDatabase.getInstance().getReference("incidents").child(id.toString())
@@ -84,14 +84,14 @@ class SafetyRepositoryImpl(
         }
     }
 
-    override suspend fun updateAudioPath(id: Long, path: String) = withContext(Dispatchers.IO) {
+    override suspend fun updateAudioPath(id: Long, path: String): Unit = withContext(Dispatchers.IO) {
         val existing = incidentDao.getActiveIncidentSync()
         if (existing != null && existing.id == id) {
             incidentDao.updateIncident(existing.copy(audioFilePath = path))
         }
     }
 
-    override suspend fun syncIncidentToCloud(incident: IncidentLog, currentLat: Double, currentLng: Double) = withContext(Dispatchers.IO) {
+    override suspend fun syncIncidentToCloud(incident: IncidentLog, currentLat: Double, currentLng: Double): Unit = withContext(Dispatchers.IO) {
         try {
             val ref = FirebaseDatabase.getInstance().getReference("incidents").child(incident.id.toString())
             val map = mapOf(
@@ -109,13 +109,13 @@ class SafetyRepositoryImpl(
         }
     }
 
-    override suspend fun uploadAudioEvidence(incidentId: Long, localAudioPath: String) = withContext(Dispatchers.IO) {
+    override suspend fun uploadAudioEvidence(incidentId: Long, localAudioPath: String): Unit = withContext(Dispatchers.IO) {
         val file = File(localAudioPath)
         if (!file.exists()) return@withContext
 
         try {
             val storageRef = FirebaseStorage.getInstance().reference.child("audio_evidence/incident_${incidentId}_${file.name}")
-            val uploadTask = storageRef.putFile(Uri.fromFile(file)).await()
+            storageRef.putFile(Uri.fromFile(file)).await()
             val downloadUrl = storageRef.downloadUrl.await().toString()
             incidentDao.updateAudioCloudUrl(incidentId, downloadUrl)
 
@@ -126,7 +126,7 @@ class SafetyRepositoryImpl(
         }
     }
 
-    override suspend fun sendEmergencySmsToContacts(lat: Double, lng: Double, incidentId: Long) = withContext(Dispatchers.IO) {
+    override suspend fun sendEmergencySmsToContacts(lat: Double, lng: Double, incidentId: Long): Unit = withContext(Dispatchers.IO) {
         val contacts = contactDao.getAllContactsList()
         val mapsUrl = "https://maps.google.com/?q=$lat,$lng"
         val message = "EMERGENCY SOS ALERT! I need help. My live location: $mapsUrl (Coordinates: $lat, $lng). Track me immediately!"
