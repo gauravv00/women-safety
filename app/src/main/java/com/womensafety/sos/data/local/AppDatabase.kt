@@ -5,18 +5,21 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.womensafety.sos.data.entity.IncidentLog
+import com.womensafety.sos.data.entity.PairedWard
 import com.womensafety.sos.data.entity.TrustedContact
 import com.womensafety.sos.data.local.dao.IncidentLogDao
+import com.womensafety.sos.data.local.dao.PairedWardDao
 import com.womensafety.sos.data.local.dao.TrustedContactDao
 
 @Database(
-    entities = [TrustedContact::class, IncidentLog::class],
-    version = 1,
+    entities = [TrustedContact::class, IncidentLog::class, PairedWard::class],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun trustedContactDao(): TrustedContactDao
     abstract fun incidentLogDao(): IncidentLogDao
+    abstract fun pairedWardDao(): PairedWardDao
 
     companion object {
         @Volatile

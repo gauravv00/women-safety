@@ -7,9 +7,12 @@ import android.util.Log
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.FirebaseStorage
 import com.womensafety.sos.data.entity.IncidentLog
+import com.womensafety.sos.data.entity.PairedWard
 import com.womensafety.sos.data.entity.TrustedContact
 import com.womensafety.sos.data.local.dao.IncidentLogDao
+import com.womensafety.sos.data.local.dao.PairedWardDao
 import com.womensafety.sos.data.local.dao.TrustedContactDao
+import com.womensafety.sos.data.util.PhoneUtils
 import com.womensafety.sos.domain.repository.SafetyRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -20,7 +23,8 @@ import java.io.File
 class SafetyRepositoryImpl(
     private val context: Context,
     private val contactDao: TrustedContactDao,
-    private val incidentDao: IncidentLogDao
+    private val incidentDao: IncidentLogDao,
+    private val pairedWardDao: PairedWardDao
 ) : SafetyRepository {
 
     private val TAG = "SafetyRepositoryImpl"
@@ -144,7 +148,7 @@ class SafetyRepositoryImpl(
         }
 
         contacts.forEach { contact ->
-            val cleanPhone = com.womensafety.sos.data.util.PhoneUtils.sanitizePhoneNumber(contact.phoneNumber)
+            val cleanPhone = PhoneUtils.sanitizePhoneNumber(contact.phoneNumber)
             if (cleanPhone.isNotBlank()) {
                 try {
                     smsManager?.sendTextMessage(cleanPhone, null, message, null, null)
@@ -153,6 +157,66 @@ class SafetyRepositoryImpl(
                     Log.e(TAG, "Failed sending SMS to $cleanPhone: ${e.localizedMessage}")
                 }
             }
+        }
+    }
+
+    // Guardian Pairing Implementations
+    override fun getAllPairedWards(): Flow<List<PairedWard>> = pairedWardDao.getAllPairedWards()
+
+    override suspend fun getAllPairedWardsSync(): List<PairedWard> = withContext(Dispatchers.IO) {
+        pairedWardDao.getAllPairedWardsSync()
+    }
+
+    override suspend fun addPairedWard(wardPairingCode: String, wardName: String): Long = withContext(Dispatchers.IO) {
+        val cleanCode = wardPairingCode.trim().uppercase()
+        val ward = PairedWard(
+            wardPairingCode = cleanCode,
+            wardName = wardName.trim(),
+            pairedAt = System.currentTimeMillis()
+        )
+        pairedWardDao.insertWard(ward)
+    }
+
+    override suspend fun deletePairedWard(id: Long): Unit = withContext(Dispatchers.IO) {
+        pairedWardDao.deleteById(id)
+    }
+
+    override suspend fun updateWardStatus(
+        code: String,
+        status: String,
+        lat: Double,
+        lng: Double,
+        timestamp: Long,
+        incidentId: Long?
+    ): Unit = withContext(Dispatchers.IO) {
+        pairedWardDao.updateWardStatus(code, status, lat, lng, timestamp, incidentId)
+    }
+
+    override suspend fun broadcastSosToGuardians(
+        myPairingCode: String,
+        myName: String,
+        incidentId: Long,
+        lat: Double,
+        lng: Double,
+        status: String
+    ): Unit = withContext(Dispatchers.IO) {
+        if (myPairingCode.isBlank()) return@withContext
+        try {
+            val ref = FirebaseDatabase.getInstance().getReference("guardians").child(myPairingCode)
+            val data = mapOf(
+                "pairingCode" to myPairingCode,
+                "wardName" to myName,
+                "status" to status,
+                "incidentId" to incidentId,
+                "latitude" to lat,
+                "longitude" to lng,
+                "timestamp" to System.currentTimeMillis(),
+                "trackingUrl" to "https://maps.google.com/?q=$lat,$lng"
+            )
+            ref.setValue(data)
+            Log.d(TAG, "Broadcasted SOS status $status for pairing code $myPairingCode to RTDB")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed broadcasting SOS to guardians: ${e.localizedMessage}")
         }
     }
 }

@@ -26,12 +26,15 @@ object ServiceLocator {
         if (_repository == null || _userPreferences == null) {
             synchronized(this) {
                 val db = database ?: AppDatabase.getDatabase(context).also { database = it }
-                val prefs = _userPreferences ?: UserPreferencesRepository(context.applicationContext).also { _userPreferences = it }
+                if (_userPreferences == null) {
+                    _userPreferences = UserPreferencesRepository(context.applicationContext)
+                }
                 if (_repository == null) {
                     _repository = SafetyRepositoryImpl(
                         context = context.applicationContext,
                         contactDao = db.trustedContactDao(),
-                        incidentDao = db.incidentLogDao()
+                        incidentDao = db.incidentLogDao(),
+                        pairedWardDao = db.pairedWardDao()
                     )
                 }
             }

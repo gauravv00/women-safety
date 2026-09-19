@@ -1,6 +1,7 @@
 package com.womensafety.sos.domain.repository
 
 import com.womensafety.sos.data.entity.IncidentLog
+import com.womensafety.sos.data.entity.PairedWard
 import com.womensafety.sos.data.entity.TrustedContact
 import kotlinx.coroutines.flow.Flow
 
@@ -21,4 +22,12 @@ interface SafetyRepository {
     suspend fun syncIncidentToCloud(incident: IncidentLog, currentLat: Double, currentLng: Double)
     suspend fun uploadAudioEvidence(incidentId: Long, localAudioPath: String)
     suspend fun sendEmergencySmsToContacts(lat: Double, lng: Double, incidentId: Long)
+
+    // Guardian Pairing methods
+    fun getAllPairedWards(): Flow<List<PairedWard>>
+    suspend fun getAllPairedWardsSync(): List<PairedWard>
+    suspend fun addPairedWard(wardPairingCode: String, wardName: String): Long
+    suspend fun deletePairedWard(id: Long)
+    suspend fun updateWardStatus(code: String, status: String, lat: Double, lng: Double, timestamp: Long, incidentId: Long?)
+    suspend fun broadcastSosToGuardians(myPairingCode: String, myName: String, incidentId: Long, lat: Double, lng: Double, status: String)
 }
