@@ -112,26 +112,38 @@ class EmergencyForegroundService : Service() {
             .setMinUpdateIntervalMillis(3000L)
             .build()
 
+        var lastSyncedLocation: Location? = null
+        var lastSyncTimestampMs: Long = 0L
+
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 for (location in locationResult.locations) {
                     _currentLocation.value = location
-                    val newHistory = _locationHistory.value + Pair(location.latitude, location.longitude)
+                    val newHistory = (_locationHistory.value + Pair(location.latitude, location.longitude)).takeLast(500)
                     _locationHistory.value = newHistory
 
-                    // Sync to Cloud
-                    serviceScope.launch {
-                        try {
-                            if (currentIncidentId != -1L) {
-                                ServiceLocator.repository.syncIncidentToCloud(
-                                    incident = ServiceLocator.repository.getActiveIncidentSync()
-                                        ?: return@launch,
-                                    currentLat = location.latitude,
-                                    currentLng = location.longitude
-                                )
+                    // Sync to Cloud with throttling: only if moved >= 10m or >= 10s since last write
+                    val now = System.currentTimeMillis()
+                    val dist = lastSyncedLocation?.distanceTo(location) ?: Float.MAX_VALUE
+                    val timeSinceSync = now - lastSyncTimestampMs
+
+                    if (dist >= 10f || timeSinceSync >= 10_000L) {
+                        lastSyncedLocation = location
+                        lastSyncTimestampMs = now
+
+                        serviceScope.launch {
+                            try {
+                                if (currentIncidentId != -1L) {
+                                    ServiceLocator.repository.syncIncidentToCloud(
+                                        incident = ServiceLocator.repository.getActiveIncidentSync()
+                                            ?: return@launch,
+                                        currentLat = location.latitude,
+                                        currentLng = location.longitude
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                Log.e("EmergencyService", "Location sync error: ${e.localizedMessage}")
                             }
-                        } catch (e: Exception) {
-                            Log.e("EmergencyService", "Location sync error: ${e.localizedMessage}")
                         }
                     }
                 }
