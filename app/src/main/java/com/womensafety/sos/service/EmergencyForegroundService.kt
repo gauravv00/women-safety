@@ -140,6 +140,15 @@ class EmergencyForegroundService : Service() {
                                         currentLat = location.latitude,
                                         currentLng = location.longitude
                                     )
+                                    val settings = ServiceLocator.userPreferences.settings.value
+                                    ServiceLocator.repository.broadcastSosToGuardians(
+                                        myPairingCode = settings.myPairingCode,
+                                        myName = settings.displayName,
+                                        incidentId = currentIncidentId,
+                                        lat = location.latitude,
+                                        lng = location.longitude,
+                                        status = "ACTIVE"
+                                    )
                                 }
                             } catch (e: Exception) {
                                 Log.e("EmergencyService", "Location sync error: ${e.localizedMessage}")
@@ -234,9 +243,24 @@ class EmergencyForegroundService : Service() {
         }
 
         val audioPath = audioRecorder?.stopRecording()
-        if (audioPath != null && currentIncidentId != -1L) {
-            serviceScope.launch {
-                ServiceLocator.repository.uploadAudioEvidence(currentIncidentId, audioPath)
+
+        serviceScope.launch {
+            try {
+                if (audioPath != null && currentIncidentId != -1L) {
+                    ServiceLocator.repository.uploadAudioEvidence(currentIncidentId, audioPath)
+                }
+                val settings = ServiceLocator.userPreferences.settings.value
+                val loc = _currentLocation.value
+                ServiceLocator.repository.broadcastSosToGuardians(
+                    myPairingCode = settings.myPairingCode,
+                    myName = settings.displayName,
+                    incidentId = currentIncidentId,
+                    lat = loc?.latitude ?: 0.0,
+                    lng = loc?.longitude ?: 0.0,
+                    status = "RESOLVED"
+                )
+            } catch (e: Exception) {
+                Log.e("EmergencyService", "Error during stop broadcast: ${e.localizedMessage}")
             }
         }
 

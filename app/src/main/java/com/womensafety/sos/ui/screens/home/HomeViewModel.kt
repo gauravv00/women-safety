@@ -46,6 +46,16 @@ class HomeViewModel(
             val incidentId = repository.createIncident(lat, lng, triggerSource)
             repository.sendEmergencySmsToContacts(lat, lng, incidentId)
 
+            val settings = ServiceLocator.userPreferences.settings.value
+            repository.broadcastSosToGuardians(
+                myPairingCode = settings.myPairingCode,
+                myName = settings.displayName,
+                incidentId = incidentId,
+                lat = lat,
+                lng = lng,
+                status = "ACTIVE"
+            )
+
             val serviceIntent = Intent(context, EmergencyForegroundService::class.java).apply {
                 action = EmergencyForegroundService.ACTION_START_SOS
                 putExtra(EmergencyForegroundService.EXTRA_INCIDENT_ID, incidentId)
@@ -61,8 +71,18 @@ class HomeViewModel(
     fun cancelSos(context: Context) {
         viewModelScope.launch {
             val active = activeIncident.value
+            val settings = ServiceLocator.userPreferences.settings.value
+
             if (active != null) {
                 repository.resolveIncident(active.id)
+                repository.broadcastSosToGuardians(
+                    myPairingCode = settings.myPairingCode,
+                    myName = settings.displayName,
+                    incidentId = active.id,
+                    lat = active.latitude,
+                    lng = active.longitude,
+                    status = "RESOLVED"
+                )
             }
             val serviceIntent = Intent(context, EmergencyForegroundService::class.java).apply {
                 action = EmergencyForegroundService.ACTION_STOP_SOS
