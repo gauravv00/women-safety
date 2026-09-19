@@ -47,9 +47,14 @@ fun LiveTrackingScreen(
 ) {
     val context = LocalContext.current
     val currentLocation by viewModel.currentLocation.collectAsState()
+    val debouncedLocation by viewModel.debouncedLocation.collectAsState()
     val history by viewModel.locationHistory.collectAsState()
     val isServiceRunning by viewModel.isServiceRunning.collectAsState()
 
+    // Use debounced location for map rendering (filters GPS jitter < 5m)
+    // Fall back to raw location for display coordinates
+    val mapLat = debouncedLocation?.latitude ?: currentLocation?.latitude ?: 28.6139
+    val mapLng = debouncedLocation?.longitude ?: currentLocation?.longitude ?: 77.2090
     val currentLat = currentLocation?.latitude ?: 28.6139
     val currentLng = currentLocation?.longitude ?: 77.2090
 
@@ -74,7 +79,7 @@ fun LiveTrackingScreen(
                 .background(DarkBackground)
         ) {
             OsmMap(
-                current = GeoPoint(currentLat, currentLng),
+                current = GeoPoint(mapLat, mapLng),
                 accuracyMeters = (currentLocation?.accuracy?.toDouble() ?: 30.0),
                 path = history.map { GeoPoint(it.first, it.second) },
                 accentColor = TrustBlue,

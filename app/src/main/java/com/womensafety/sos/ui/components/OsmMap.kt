@@ -20,6 +20,12 @@ import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.TilesOverlay
 import java.io.File
 
+/**
+ * Minimum distance (meters) the location must move before we re-center the map.
+ * Prevents constant animateTo jitter on stationary GPS drift.
+ */
+private const val MIN_MOVE_METERS = 5.0
+
 @Composable
 fun OsmMap(
     current: GeoPoint,
@@ -31,6 +37,11 @@ fun OsmMap(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Persistent overlay references — avoids clear-and-recreate every recomposition
+    val polyline = remember { Polyline() }
+    val accuracyCircle = remember { Polygon() }
+    // Marker must be created with a MapView reference, so we defer its creation
 
     val mapView = remember {
         Configuration.getInstance().apply {
@@ -48,6 +59,13 @@ fun OsmMap(
             overlayManager.tilesOverlay.setColorFilter(TilesOverlay.INVERT_COLORS) // dark tiles
         }
     }
+
+    val marker = remember { Marker(mapView).apply { title = "Live SOS Location" } }
+
+    // Track last animated-to position to skip no-op animateTo calls
+    var lastAnimatedPoint by remember { mutableStateOf<GeoPoint?>(null) }
+    // Track whether overlays have been added to the map
+    var overlaysAttached by remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycleOwner) {
         val obs = LifecycleEventObserver { _, e ->
@@ -68,26 +86,41 @@ fun OsmMap(
         modifier = modifier,
         factory = { mapView },
         update = { map ->
-            map.overlays.clear()
-            if (path.size >= 2) {
-                map.overlays.add(Polyline().apply {
-                    setPoints(path)
-                    outlinePaint.color = pathColor.toArgb()
-                    outlinePaint.strokeWidth = 10f
-                })
+            // One-time: attach persistent overlays
+            if (!overlaysAttached) {
+                map.overlays.add(polyline)
+                map.overlays.add(accuracyCircle)
+                map.overlays.add(marker)
+                overlaysAttached = true
             }
-            map.overlays.add(Polygon().apply {
-                points = Polygon.pointsAsCircle(current, accuracyMeters.coerceAtLeast(15.0))
-                fillPaint.color = accentColor.copy(alpha = 0.25f).toArgb()
-                outlinePaint.color = accentColor.toArgb()
-                outlinePaint.strokeWidth = 3f
-            })
-            map.overlays.add(Marker(map).apply {
-                position = current
-                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                title = "Live SOS Location"
-            })
-            map.controller.animateTo(current)
+
+            // Update polyline path (only mutate data, don't recreate overlay)
+            if (path.size >= 2) {
+                polyline.setPoints(path)
+                polyline.outlinePaint.color = pathColor.toArgb()
+                polyline.outlinePaint.strokeWidth = 10f
+                polyline.isVisible = true
+            } else {
+                polyline.isVisible = false
+            }
+
+            // Update accuracy circle
+            accuracyCircle.points = Polygon.pointsAsCircle(current, accuracyMeters.coerceAtLeast(15.0))
+            accuracyCircle.fillPaint.color = accentColor.copy(alpha = 0.25f).toArgb()
+            accuracyCircle.outlinePaint.color = accentColor.toArgb()
+            accuracyCircle.outlinePaint.strokeWidth = 3f
+
+            // Update marker position
+            marker.position = current
+            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+
+            // Only animate camera if moved more than MIN_MOVE_METERS
+            val last = lastAnimatedPoint
+            if (last == null || last.distanceToAsDouble(current) >= MIN_MOVE_METERS) {
+                map.controller.animateTo(current)
+                lastAnimatedPoint = current
+            }
+
             map.invalidate()
         }
     )
