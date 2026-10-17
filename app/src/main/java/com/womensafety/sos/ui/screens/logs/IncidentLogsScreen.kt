@@ -50,13 +50,19 @@ import java.util.Locale
 
 @Composable
 fun IncidentLogsScreen(
+    onBackClick: (() -> Unit)? = null,
     viewModel: IncidentLogsViewModel = viewModel()
 ) {
     val incidents by viewModel.incidentLogs.collectAsState()
     val playingId by viewModel.currentlyPlayingId.collectAsState()
 
     Scaffold(
-        topBar = { AppTopBar(title = "INCIDENT LOGS & EVIDENCE") },
+        topBar = {
+            AppTopBar(
+                title = "INCIDENT LOGS & EVIDENCE",
+                onBackClick = onBackClick
+            )
+        },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
         Box(

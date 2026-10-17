@@ -133,22 +133,29 @@ class EmergencyForegroundService : Service() {
 
                         serviceScope.launch {
                             try {
+                                val settings = ServiceLocator.userPreferences.settings.value
+                                ServiceLocator.repository.broadcastSosToGuardians(
+                                    myPairingCode = settings.myPairingCode,
+                                    myName = settings.displayName,
+                                    incidentId = currentIncidentId,
+                                    lat = location.latitude,
+                                    lng = location.longitude,
+                                    status = "ACTIVE"
+                                )
+                            } catch (e: Exception) {
+                                Log.e("EmergencyService", "Guardian location broadcast error: ${e.localizedMessage}")
+                            }
+
+                            try {
                                 if (currentIncidentId != -1L) {
-                                    ServiceLocator.repository.syncIncidentToCloud(
-                                        incident = ServiceLocator.repository.getActiveIncidentSync()
-                                            ?: return@launch,
-                                        currentLat = location.latitude,
-                                        currentLng = location.longitude
-                                    )
-                                    val settings = ServiceLocator.userPreferences.settings.value
-                                    ServiceLocator.repository.broadcastSosToGuardians(
-                                        myPairingCode = settings.myPairingCode,
-                                        myName = settings.displayName,
-                                        incidentId = currentIncidentId,
-                                        lat = location.latitude,
-                                        lng = location.longitude,
-                                        status = "ACTIVE"
-                                    )
+                                    val incident = ServiceLocator.repository.getActiveIncidentSync()
+                                    if (incident != null) {
+                                        ServiceLocator.repository.syncIncidentToCloud(
+                                            incident = incident,
+                                            currentLat = location.latitude,
+                                            currentLng = location.longitude
+                                        )
+                                    }
                                 }
                             } catch (e: Exception) {
                                 Log.e("EmergencyService", "Location sync error: ${e.localizedMessage}")

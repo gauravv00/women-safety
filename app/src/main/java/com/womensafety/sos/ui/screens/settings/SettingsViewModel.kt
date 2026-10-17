@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.womensafety.sos.data.entity.PairedWard
 import com.womensafety.sos.data.pref.SafetySettings
 import com.womensafety.sos.data.pref.UserPreferencesRepository
+import com.womensafety.sos.data.util.PhoneUtils
 import com.womensafety.sos.di.ServiceLocator
 import com.womensafety.sos.domain.repository.SafetyRepository
 import com.womensafety.sos.service.GuardianMonitorService
@@ -62,8 +63,10 @@ class SettingsViewModel(
     }
 
     fun addPairedWard(pairingCode: String, wardName: String) {
+        val normalized = PhoneUtils.normalizePairingCode(pairingCode)
+        if (normalized.isBlank()) return
         viewModelScope.launch {
-            repository.addPairedWard(pairingCode, wardName)
+            repository.addPairedWard(normalized, wardName.trim())
         }
     }
 

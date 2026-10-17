@@ -22,9 +22,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PhoneCallback
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.PhoneCallback
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -238,7 +238,7 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         QuickActionButton(
-                            icon = Icons.Default.PhoneCallback,
+                            icon = Icons.AutoMirrored.Filled.PhoneCallback,
                             label = "Fake\nCall",
                             color = DarkSurfaceVariant,
                             modifier = Modifier.weight(1f),

@@ -4,9 +4,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -24,17 +26,32 @@ import com.womensafety.sos.ui.theme.DarkSurface
 @Composable
 fun AppTopBar(
     title: String = "WOMEN SAFETY SOS",
-    isSosActive: Boolean = false
+    isSosActive: Boolean = false,
+    onBackClick: (() -> Unit)? = null,
+    actions: @Composable (() -> Unit)? = null
 ) {
     TopAppBar(
+        navigationIcon = {
+            if (onBackClick != null) {
+                IconButton(onClick = onBackClick) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White
+                    )
+                }
+            }
+        },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Shield,
-                    contentDescription = "Shield",
-                    tint = if (isSosActive) AlertRed else Color.White
-                )
-                Spacer(modifier = Modifier.width(10.dp))
+                if (onBackClick == null) {
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = "Shield",
+                        tint = if (isSosActive) AlertRed else Color.White
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                }
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleLarge,
@@ -42,6 +59,9 @@ fun AppTopBar(
                     color = if (isSosActive) AlertRed else Color.White
                 )
             }
+        },
+        actions = {
+            actions?.invoke()
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = DarkSurface

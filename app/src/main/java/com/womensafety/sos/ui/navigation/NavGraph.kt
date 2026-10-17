@@ -112,11 +112,27 @@ fun MainNavGraph(
             }
 
             composable(Screen.Contacts.route) {
-                TrustedContactsScreen()
+                TrustedContactsScreen(
+                    onBackClick = {
+                        if (navController.previousBackStackEntry != null) {
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate(Screen.Home.route)
+                        }
+                    }
+                )
             }
 
             composable(Screen.Map.route) {
-                LiveTrackingScreen()
+                LiveTrackingScreen(
+                    onBackClick = {
+                        if (navController.previousBackStackEntry != null) {
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate(Screen.Home.route)
+                        }
+                    }
+                )
             }
 
             composable(Screen.FakeCall.route) {
@@ -127,16 +143,33 @@ fun MainNavGraph(
 
             composable(Screen.CheckIn.route) {
                 SafetyCheckInScreen(
+                    onBackClick = { navController.popBackStack() },
                     onTimerTriggeredSos = { navController.navigate(Screen.Home.route) }
                 )
             }
 
             composable(Screen.Settings.route) {
-                SettingsScreen()
+                SettingsScreen(
+                    onBackClick = {
+                        if (navController.previousBackStackEntry != null) {
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate(Screen.Home.route)
+                        }
+                    }
+                )
             }
 
             composable(Screen.Logs.route) {
-                IncidentLogsScreen()
+                IncidentLogsScreen(
+                    onBackClick = {
+                        if (navController.previousBackStackEntry != null) {
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate(Screen.Home.route)
+                        }
+                    }
+                )
             }
         }
     }

@@ -1,22 +1,263 @@
 package com.womensafety.sos.ui.screens.fakecall
 
+import android.content.Context
+import android.media.AudioManager
+import android.media.Ringtone
+import android.media.RingtoneManager
+import android.media.ToneGenerator
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import android.speech.tts.TextToSpeech
+import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.util.Locale
 
-class FakeCallViewModel : ViewModel() {
-    private val _callerName = MutableStateFlow("Mom (Incoming)")
+enum class FakeCallStage {
+    SETUP,
+    INCOMING,
+    IN_CALL,
+    ENDED
+}
+
+class FakeCallViewModel : ViewModel(), TextToSpeech.OnInitListener {
+
+    private val TAG = "FakeCallViewModel"
+
+    private val _stage = MutableStateFlow(FakeCallStage.INCOMING)
+    val stage: StateFlow<FakeCallStage> = _stage.asStateFlow()
+
+    private val _callerName = MutableStateFlow("Mom")
     val callerName: StateFlow<String> = _callerName.asStateFlow()
 
-    private val _isCallAnswered = MutableStateFlow(false)
-    val isCallAnswered: StateFlow<Boolean> = _isCallAnswered.asStateFlow()
+    private val _callerNumber = MutableStateFlow("+1 (555) 019-2834")
+    val callerNumber: StateFlow<String> = _callerNumber.asStateFlow()
 
-    fun setCallerName(name: String) {
-        _callerName.value = name
+    private val _callSeconds = MutableStateFlow(0)
+    val callSeconds: StateFlow<Int> = _callSeconds.asStateFlow()
+
+    private val _scheduledCountdown = MutableStateFlow(0)
+    val scheduledCountdown: StateFlow<Int> = _scheduledCountdown.asStateFlow()
+
+    private val _isMuted = MutableStateFlow(false)
+    val isMuted: StateFlow<Boolean> = _isMuted.asStateFlow()
+
+    private val _isSpeakerOn = MutableStateFlow(true)
+    val isSpeakerOn: StateFlow<Boolean> = _isSpeakerOn.asStateFlow()
+
+    private val _isOnHold = MutableStateFlow(false)
+    val isOnHold: StateFlow<Boolean> = _isOnHold.asStateFlow()
+
+    private val _showKeypad = MutableStateFlow(false)
+    val showKeypad: StateFlow<Boolean> = _showKeypad.asStateFlow()
+
+    private val _dialedDigits = MutableStateFlow("")
+    val dialedDigits: StateFlow<String> = _dialedDigits.asStateFlow()
+
+    private var timerJob: Job? = null
+    private var countdownJob: Job? = null
+    private var ringtone: Ringtone? = null
+    private var toneGenerator: ToneGenerator? = null
+    private var tts: TextToSpeech? = null
+    private var isTtsReady = false
+
+    fun initTts(context: Context) {
+        if (tts == null) {
+            tts = TextToSpeech(context.applicationContext, this)
+        }
+        try {
+            toneGenerator = ToneGenerator(AudioManager.STREAM_VOICE_CALL, 80)
+        } catch (e: Exception) {
+            Log.w(TAG, "ToneGenerator init failed: ${e.message}")
+        }
     }
 
-    fun answerCall() {
-        _isCallAnswered.value = true
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            tts?.language = Locale.getDefault()
+            isTtsReady = true
+        }
+    }
+
+    fun setCallerDetails(name: String, number: String) {
+        _callerName.value = name.ifBlank { "Mom" }
+        _callerNumber.value = number.ifBlank { "Mobile" }
+    }
+
+    fun startImmediateIncoming(context: Context) {
+        _stage.value = FakeCallStage.INCOMING
+        startRinging(context)
+    }
+
+    fun scheduleCall(seconds: Int, context: Context) {
+        _stage.value = FakeCallStage.SETUP
+        _scheduledCountdown.value = seconds
+        countdownJob?.cancel()
+        countdownJob = viewModelScope.launch {
+            while (_scheduledCountdown.value > 0) {
+                delay(1000L)
+                _scheduledCountdown.value -= 1
+            }
+            startImmediateIncoming(context)
+        }
+    }
+
+    fun cancelSchedule() {
+        countdownJob?.cancel()
+        _scheduledCountdown.value = 0
+    }
+
+    fun startRinging(context: Context) {
+        stopRinging()
+        try {
+            val ringUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            ringtone = RingtoneManager.getRingtone(context.applicationContext, ringUri)
+            ringtone?.play()
+
+            // Vibrate
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vm?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 1000, 1000), 0))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator?.vibrate(longArrayOf(0, 1000, 1000), 0)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Ringtone/vibrate error: ${e.message}")
+        }
+    }
+
+    fun stopRinging() {
+        try {
+            ringtone?.stop()
+            ringtone = null
+        } catch (e: Exception) {
+            // ignore
+        }
+    }
+
+    fun answerCall(context: Context) {
+        stopRinging()
+        _stage.value = FakeCallStage.IN_CALL
+        _callSeconds.value = 0
+
+        // Start timer counting up
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch {
+            while (_stage.value == FakeCallStage.IN_CALL) {
+                delay(1000L)
+                _callSeconds.value += 1
+
+                // Simulate realistic speech voice after 2 seconds
+                if (_callSeconds.value == 2 && isTtsReady && !_isOnHold.value) {
+                    playRealisticVoice()
+                }
+            }
+        }
+    }
+
+    private fun playRealisticVoice() {
+        try {
+            val phrase = "Hey, are you there? I'm waiting for you right outside. Come quickly, okay? I'm watching the street for you."
+            tts?.speak(phrase, TextToSpeech.QUEUE_FLUSH, null, "fake_call_voice")
+        } catch (e: Exception) {
+            Log.w(TAG, "TTS speak error: ${e.message}")
+        }
+    }
+
+    fun declineCall(context: Context, onDismiss: () -> Unit) {
+        stopRinging()
+        _stage.value = FakeCallStage.ENDED
+        onDismiss()
+    }
+
+    fun endCall(onDismiss: () -> Unit) {
+        stopRinging()
+        timerJob?.cancel()
+        tts?.stop()
+        try {
+            toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP2, 200)
+        } catch (e: Exception) {
+            // ignore
+        }
+        _stage.value = FakeCallStage.ENDED
+        onDismiss()
+    }
+
+    fun toggleMute() {
+        _isMuted.value = !_isMuted.value
+    }
+
+    fun toggleSpeaker() {
+        _isSpeakerOn.value = !_isSpeakerOn.value
+    }
+
+    fun toggleHold() {
+        _isOnHold.value = !_isOnHold.value
+        if (_isOnHold.value) {
+            tts?.stop()
+        }
+    }
+
+    fun toggleKeypad() {
+        _showKeypad.value = !_showKeypad.value
+    }
+
+    fun pressKeypadDigit(digit: Char) {
+        _dialedDigits.value += digit
+        try {
+            val tone = when (digit) {
+                '1' -> ToneGenerator.TONE_DTMF_1
+                '2' -> ToneGenerator.TONE_DTMF_2
+                '3' -> ToneGenerator.TONE_DTMF_3
+                '4' -> ToneGenerator.TONE_DTMF_4
+                '5' -> ToneGenerator.TONE_DTMF_5
+                '6' -> ToneGenerator.TONE_DTMF_6
+                '7' -> ToneGenerator.TONE_DTMF_7
+                '8' -> ToneGenerator.TONE_DTMF_8
+                '9' -> ToneGenerator.TONE_DTMF_9
+                '0' -> ToneGenerator.TONE_DTMF_0
+                '*' -> ToneGenerator.TONE_DTMF_S
+                '#' -> ToneGenerator.TONE_DTMF_P
+                else -> ToneGenerator.TONE_PROP_BEEP
+            }
+            toneGenerator?.startTone(tone, 120)
+        } catch (e: Exception) {
+            Log.w(TAG, "Keypad tone error: ${e.message}")
+        }
+    }
+
+    fun deleteKeypadDigit() {
+        if (_dialedDigits.value.isNotEmpty()) {
+            _dialedDigits.value = _dialedDigits.value.dropLast(1)
+        }
+    }
+
+    fun showSetup() {
+        _stage.value = FakeCallStage.SETUP
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopRinging()
+        timerJob?.cancel()
+        countdownJob?.cancel()
+        tts?.stop()
+        tts?.shutdown()
+        toneGenerator?.release()
     }
 }

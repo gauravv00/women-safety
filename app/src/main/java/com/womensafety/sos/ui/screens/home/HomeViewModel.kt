@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class HomeViewModel(
     private val repository: SafetyRepository = ServiceLocator.repository
@@ -37,9 +38,15 @@ class HomeViewModel(
     private var shakeDetector: ShakeDetector? = null
     private var sensorManager: SensorManager? = null
 
+    @android.annotation.SuppressLint("MissingPermission")
     fun triggerSos(context: Context, triggerSource: String = "MANUAL_HOLD") {
         viewModelScope.launch {
-            val location = EmergencyForegroundService.currentLocation.value
+            val fusedClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context)
+            val location = EmergencyForegroundService.currentLocation.value ?: try {
+                fusedClient.lastLocation.await()
+            } catch (e: Exception) {
+                null
+            }
             val lat = location?.latitude ?: 0.0
             val lng = location?.longitude ?: 0.0
 
