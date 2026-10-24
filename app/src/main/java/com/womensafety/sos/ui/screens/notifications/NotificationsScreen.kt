@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Shield
@@ -157,7 +158,13 @@ fun NotificationsScreen(
                                         }
                                     },
                                     onAccept = { viewModel.acceptPairRequest(item) },
-                                    onReject = { viewModel.rejectPairRequest(item) }
+                                    onReject = { viewModel.rejectPairRequest(item) },
+                                    onTrackLive = {
+                                        viewModel.markRead(item.id)
+                                        if (item.refId.isNotBlank()) {
+                                            onNavigateToTracking(item.refId)
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -175,7 +182,8 @@ fun DismissibleNotificationCard(
     onDismiss: () -> Unit,
     onClick: () -> Unit,
     onAccept: () -> Unit,
-    onReject: () -> Unit
+    onReject: () -> Unit,
+    onTrackLive: () -> Unit
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
@@ -215,7 +223,8 @@ fun DismissibleNotificationCard(
             item = item,
             onClick = onClick,
             onAccept = onAccept,
-            onReject = onReject
+            onReject = onReject,
+            onTrackLive = onTrackLive
         )
     }
 }
@@ -225,34 +234,9 @@ fun NotificationCardContent(
     item: NotificationItem,
     onClick: () -> Unit,
     onAccept: () -> Unit,
-    onReject: () -> Unit
+    onReject: () -> Unit,
+    onTrackLive: () -> Unit
 ) {
-    val isEmergency = item.type == NotificationType.EMERGENCY && item.status == NotificationStatus.ACTIVE
-    val isResolved = item.type == NotificationType.RESOLVED || item.status == NotificationStatus.RESOLVED
-
-    val cardColor = when {
-        isEmergency -> AlertRed.copy(alpha = 0.22f)
-        isResolved -> SafetyGreen.copy(alpha = 0.16f)
-        !item.read -> DarkSurfaceVariant
-        else -> DarkSurface
-    }
-
-    val typeIcon: ImageVector = when (item.type) {
-        NotificationType.PAIR_REQUEST -> Icons.Default.PersonAdd
-        NotificationType.PAIR_ACCEPTED -> Icons.Default.CheckCircle
-        NotificationType.PAIR_REJECTED -> Icons.Default.Close
-        NotificationType.EMERGENCY -> Icons.Default.Warning
-        NotificationType.RESOLVED -> Icons.Default.Shield
-    }
-
-    val iconTint: Color = when {
-        isEmergency -> AlertRed
-        isResolved -> SafetyGreen
-        item.type == NotificationType.PAIR_REQUEST -> TrustBlue
-        item.type == NotificationType.PAIR_ACCEPTED -> SafetyGreen
-        else -> Color.LightGray
-    }
-
     val relativeTime = remember(item.createdAt) {
         try {
             DateUtils.getRelativeTimeSpanString(
@@ -266,138 +250,322 @@ fun NotificationCardContent(
         }
     }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = cardColor),
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+    when (item.type) {
+        NotificationType.EMERGENCY -> {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = AlertRed.copy(alpha = 0.22f)),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onClick() }
             ) {
-                // Type Icon Box
-                Box(
+                Column(
                     modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(iconTint.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(14.dp)
                 ) {
-                    Icon(
-                        imageVector = typeIcon,
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = item.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(AlertRed.copy(alpha = 0.25f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = AlertRed,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
 
-                        Text(
-                            text = relativeTime,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.Gray
-                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(AlertRed)
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "🚨 IN DANGER",
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                }
+                                Text(
+                                    text = relativeTime,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.Gray
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = item.fromName.ifBlank { item.title.ifBlank { "Ward" } },
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = item.body,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.LightGray
+                            )
+                        }
+
+                        if (!item.read) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(AlertRed)
+                            )
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    Text(
-                        text = item.body,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.LightGray
-                    )
-                }
-
-                // Unread dot indicator
-                if (!item.read) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(if (isEmergency) AlertRed else TrustBlue)
-                    )
-                }
-            }
-
-            // Status Badge for Emergency & Resolved
-            if (isEmergency || isResolved) {
-                Spacer(modifier = Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isEmergency) AlertRed else SafetyGreen)
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = if (isEmergency) "🚨 ACTIVE EMERGENCY" else "✓ RESOLVED",
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                    }
-
-                    Text(
-                        text = "Tap to open live map →",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isEmergency) AlertRed else SafetyGreen,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-
-            // Inline Accept / Reject buttons for PAIR_REQUEST when status is PENDING
-            if (item.type == NotificationType.PAIR_REQUEST && item.status == NotificationStatus.PENDING) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
                     Button(
-                        onClick = onAccept,
-                        colors = ButtonDefaults.buttonColors(containerColor = SafetyGreen),
+                        onClick = onTrackLive,
+                        colors = ButtonDefaults.buttonColors(containerColor = TrustBlue),
                         shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(imageVector = Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "Accept", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(text = "Track Live", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
+            }
+        }
+
+        NotificationType.RESOLVED -> {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SafetyGreen.copy(alpha = 0.16f)),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onClick() }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(SafetyGreen.copy(alpha = 0.25f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = null,
+                                tint = SafetyGreen,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(SafetyGreen)
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "✓ RESOLVED",
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                }
+                                Text(
+                                    text = relativeTime,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.Gray
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = item.title.ifBlank { "Emergency Resolved" },
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = item.body,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.LightGray
+                            )
+                        }
+
+                        if (!item.read) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(SafetyGreen)
+                            )
+                        }
                     }
 
-                    OutlinedButton(
-                        onClick = onReject,
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1f)
+                    if (item.refId.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        OutlinedButton(
+                            onClick = onTrackLive,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(imageVector = Icons.Default.LocationOn, contentDescription = null, tint = SafetyGreen, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "View Final Location", color = SafetyGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
+        }
+
+        else -> {
+            val cardColor = if (!item.read) DarkSurfaceVariant else DarkSurface
+            val typeIcon: ImageVector = when (item.type) {
+                NotificationType.PAIR_ACCEPTED -> Icons.Default.CheckCircle
+                NotificationType.PAIR_REJECTED -> Icons.Default.Close
+                else -> Icons.Default.PersonAdd
+            }
+            val iconTint: Color = when (item.type) {
+                NotificationType.PAIR_ACCEPTED -> SafetyGreen
+                NotificationType.PAIR_REQUEST -> TrustBlue
+                else -> Color.LightGray
+            }
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = cardColor),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onClick() }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = null, tint = AlertRed, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "Decline", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(iconTint.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = typeIcon,
+                                contentDescription = null,
+                                tint = iconTint,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = item.title,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+
+                                Text(
+                                    text = relativeTime,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.Gray
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(2.dp))
+
+                            Text(
+                                text = item.body,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.LightGray
+                            )
+                        }
+
+                        if (!item.read) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(TrustBlue)
+                            )
+                        }
+                    }
+
+                    if (item.type == NotificationType.PAIR_REQUEST && item.status == NotificationStatus.PENDING) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = onAccept,
+                                colors = ButtonDefaults.buttonColors(containerColor = SafetyGreen),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(text = "Accept", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+
+                            OutlinedButton(
+                                onClick = onReject,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(imageVector = Icons.Default.Close, contentDescription = null, tint = AlertRed, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(text = "Decline", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+                        }
                     }
                 }
             }
