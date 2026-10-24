@@ -132,7 +132,7 @@ class EmergencySosService : Service() {
                 action = ACTION_START
                 putExtra(EXTRA_EMERGENCY_ID, emergencyId)
             }
-            ContextCompat.startForegroundService(context, intent)
+            try { ContextCompat.startForegroundService(context, intent) } catch (e: Exception) { Log.e(TAG, "Failed to start EmergencySosService", e) }
         }
 
         fun stop(context: Context) {

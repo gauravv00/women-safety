@@ -44,15 +44,18 @@ class GuardianMonitorService : Service() {
 
         private val _isMonitoring = MutableStateFlow(false)
         val isMonitoring: StateFlow<Boolean> = _isMonitoring.asStateFlow()
-
         fun start(context: Context) {
-            val intent = Intent(context, GuardianMonitorService::class.java).apply {
-                action = ACTION_START_MONITORING
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
+            try {
+                val intent = Intent(context, GuardianMonitorService::class.java).apply {
+                    action = ACTION_START_MONITORING
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start GuardianMonitorService", e)
             }
         }
 
