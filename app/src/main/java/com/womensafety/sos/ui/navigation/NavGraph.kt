@@ -234,9 +234,10 @@ fun NavHostContainer(
                 }
             ),
             deepLinks = listOf(navDeepLink { uriPattern = "womensafety://tracking/{emergencyId}" })
-        ) {
-            // emergencyId present: navigate via deep link or notification card tap
+        ) { backStackEntry ->
+            val emergencyId = backStackEntry.arguments?.getString("emergencyId") ?: ""
             LiveTrackingScreen(
+                emergencyId = emergencyId,
                 onBackClick = {
                     if (navController.previousBackStackEntry != null) {
                         navController.popBackStack()
