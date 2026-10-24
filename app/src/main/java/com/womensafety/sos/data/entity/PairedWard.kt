@@ -9,6 +9,7 @@ data class PairedWard(
     val id: Long = 0,
     val wardPairingCode: String,
     val wardName: String,
+    val wardUid: String = "",
     val pairedAt: Long = System.currentTimeMillis(),
     val lastKnownLat: Double = 0.0,
     val lastKnownLng: Double = 0.0,

@@ -26,7 +26,7 @@ interface SafetyRepository {
     // Guardian Pairing methods
     fun getAllPairedWards(): Flow<List<PairedWard>>
     suspend fun getAllPairedWardsSync(): List<PairedWard>
-    suspend fun addPairedWard(wardPairingCode: String, wardName: String): Long
+    suspend fun addPairedWard(wardPairingCode: String, wardName: String, wardUid: String = ""): Long
     suspend fun deletePairedWard(id: Long)
     suspend fun updateWardStatus(code: String, status: String, lat: Double, lng: Double, timestamp: Long, incidentId: Long?)
     suspend fun broadcastSosToGuardians(myPairingCode: String, myName: String, incidentId: Long, lat: Double, lng: Double, status: String)

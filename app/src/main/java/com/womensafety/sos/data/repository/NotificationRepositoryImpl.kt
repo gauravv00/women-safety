@@ -172,7 +172,7 @@ class NotificationRepositoryImpl(
         }
     }
 
-    override suspend fun sendPairRequest(wardPairingCode: String, guardianName: String): Result<Unit> {
+    override suspend fun sendPairRequest(wardPairingCode: String, guardianName: String): Result<String> {
         return try {
             val guardianUid = authManager.ensureAuthenticated()
             if (guardianUid.isBlank()) return Result.failure(Exception("Not authenticated"))
@@ -253,7 +253,7 @@ class NotificationRepositoryImpl(
             batch.set(notifRef, notifItem.toMap())
 
             batch.commit().await()
-            Result.success(Unit)
+            Result.success(wardUid)
         } catch (e: Exception) {
             Log.e(TAG, "Error sending pair request", e)
             Result.failure(e)

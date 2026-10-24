@@ -167,11 +167,12 @@ class SafetyRepositoryImpl(
         pairedWardDao.getAllPairedWardsSync()
     }
 
-    override suspend fun addPairedWard(wardPairingCode: String, wardName: String): Long = withContext(Dispatchers.IO) {
+    override suspend fun addPairedWard(wardPairingCode: String, wardName: String, wardUid: String): Long = withContext(Dispatchers.IO) {
         val cleanCode = wardPairingCode.trim().uppercase()
         val ward = PairedWard(
             wardPairingCode = cleanCode,
             wardName = wardName.trim(),
+            wardUid = wardUid,
             pairedAt = System.currentTimeMillis()
         )
         pairedWardDao.insertWard(ward)

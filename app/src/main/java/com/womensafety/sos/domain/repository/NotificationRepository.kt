@@ -11,7 +11,8 @@ interface NotificationRepository {
     suspend fun handlePairRequest(notification: NotificationItem, accept: Boolean): Result<Unit>
     /** Guardian calls this to initiate pairing. Looks up [wardPairingCode] in Firestore users,
      *  checks for duplicate, writes a PAIR_REQUEST notification to the ward's inbox. */
-    suspend fun sendPairRequest(wardPairingCode: String, guardianName: String): Result<Unit>
+    /** Returns Result<wardUid> on success so caller can persist the pairing locally. */
+    suspend fun sendPairRequest(wardPairingCode: String, guardianName: String): Result<String>
     /** Returns all active pairs where current user is the guardian. */
     fun getMyWards(): Flow<List<Map<String, Any>>>
     /** Removes the pair document for [wardUid] and sends an UNPAIR notification. */

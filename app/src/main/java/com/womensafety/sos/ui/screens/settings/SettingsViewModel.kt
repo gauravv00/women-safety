@@ -71,7 +71,8 @@ class SettingsViewModel(
             val guardianName = prefsRepository.settings.value.displayName
             val result = notificationRepository.sendPairRequest(normalized, guardianName)
             if (result.isSuccess) {
-                repository.addPairedWard(normalized, wardName.trim())
+                val wardUid = result.getOrDefault("")
+                repository.addPairedWard(normalized, wardName.trim(), wardUid)
                 _pairRequestState.value = PairRequestState.Success(
                     "Pairing request sent! Waiting for the ward's approval."
                 )
@@ -85,6 +86,16 @@ class SettingsViewModel(
 
     fun deletePairedWard(id: Long) {
         viewModelScope.launch { repository.deletePairedWard(id) }
+    }
+
+    /** Unpairs a ward: deletes the Firestore pairs doc + sends notification, then removes from Room. */
+    fun unpairWard(ward: com.womensafety.sos.data.entity.PairedWard) {
+        viewModelScope.launch {
+            if (ward.wardUid.isNotBlank()) {
+                notificationRepository.unpair(ward.wardUid, ward.wardName)
+            }
+            repository.deletePairedWard(ward.id)
+        }
     }
 
     fun resetPairRequestState() {
