@@ -86,7 +86,8 @@ fun HomeScreen(
     onNavigateToCheckIn: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     viewModel: HomeViewModel = viewModel(),
-    notificationViewModel: NotificationViewModel = viewModel()
+    notificationViewModel: NotificationViewModel = viewModel(),
+    emergencyViewModel: EmergencyViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val activeIncident by viewModel.activeIncident.collectAsState()
@@ -94,8 +95,10 @@ fun HomeScreen(
     val trustedContacts by viewModel.trustedContacts.collectAsState()
     val showCallPanel by viewModel.showCallPanel.collectAsState()
     val unreadNotifCount by notificationViewModel.unreadCount.collectAsState()
+    val emergencyId by emergencyViewModel.emergencyId.collectAsState()
+    val isEmergencyActive by emergencyViewModel.isEmergencyActive.collectAsState()
 
-    val isSosActive = activeIncident != null || isServiceRunning
+    val isSosActive = activeIncident != null || isServiceRunning || isEmergencyActive
 
     var showNotifRationaleDialog by remember { mutableStateOf(false) }
 
@@ -204,8 +207,14 @@ fun HomeScreen(
                         SosButton(
                             size = landscapeButtonSize,
                             isActive = isSosActive,
-                            onSosTriggered = { viewModel.triggerSos(context) },
-                            onSosCancelled = { viewModel.cancelSos(context) }
+                            onSosTriggered = {
+                                viewModel.triggerSos(context)
+                                emergencyViewModel.startEmergency(context)
+                            },
+                            onSosCancelled = {
+                                viewModel.cancelSos(context)
+                                emergencyViewModel.stopEmergency(context)
+                            }
                         )
 
                         Spacer(modifier = Modifier.height(10.dp))
@@ -228,7 +237,14 @@ fun HomeScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         AnimatedVisibility(visible = isSosActive) {
-                            AlertBannerCard(onNavigateToMap = onNavigateToMap)
+                            AlertBannerCard(
+                                onNavigateToMap = onNavigateToMap,
+                                emergencyId = emergencyId,
+                                onStopSos = {
+                                    viewModel.cancelSos(context)
+                                    emergencyViewModel.stopEmergency(context)
+                                }
+                            )
                         }
 
                         QuickActionGrid(
@@ -257,7 +273,14 @@ fun HomeScreen(
                     ) {
                         // Active Alert Banner
                         AnimatedVisibility(visible = isSosActive) {
-                            AlertBannerCard(onNavigateToMap = onNavigateToMap)
+                            AlertBannerCard(
+                                onNavigateToMap = onNavigateToMap,
+                                emergencyId = emergencyId,
+                                onStopSos = {
+                                    viewModel.cancelSos(context)
+                                    emergencyViewModel.stopEmergency(context)
+                                }
+                            )
                         }
 
                         if (!isSosActive) {
@@ -280,8 +303,14 @@ fun HomeScreen(
                         SosButton(
                             size = portraitButtonSize,
                             isActive = isSosActive,
-                            onSosTriggered = { viewModel.triggerSos(context) },
-                            onSosCancelled = { viewModel.cancelSos(context) }
+                            onSosTriggered = {
+                                viewModel.triggerSos(context)
+                                emergencyViewModel.startEmergency(context)
+                            },
+                            onSosCancelled = {
+                                viewModel.cancelSos(context)
+                                emergencyViewModel.stopEmergency(context)
+                            }
                         )
                     }
 
@@ -355,6 +384,8 @@ fun HomeScreen(
 @Composable
 fun AlertBannerCard(
     onNavigateToMap: () -> Unit,
+    emergencyId: String = "",
+    onStopSos: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -364,33 +395,52 @@ fun AlertBannerCard(
             .fillMaxWidth()
             .padding(bottom = 12.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "🚨 SOS ALERT ACTIVE",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
-                )
-                Text(
-                    text = "Broadcasting location & recording audio...",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.9f)
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Button(
-                onClick = onNavigateToMap,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                shape = RoundedCornerShape(10.dp)
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(text = "View Map", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "🚨 SOS ALERT ACTIVE",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Broadcasting location & recording audio...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.9f)
+                    )
+                    if (emergencyId.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Live ID: ${emergencyId.take(8)}...",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (onStopSos != null) {
+                        Button(
+                            onClick = onStopSos,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Black.copy(alpha = 0.7f)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(text = "STOP", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
+                    Button(
+                        onClick = onNavigateToMap,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = "Map", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
             }
         }
     }

@@ -70,6 +70,11 @@
             android:foregroundServiceType="location|microphone" />
 
         <service
+            android:name=".service.EmergencySosService"
+            android:foregroundServiceType="location"
+            android:exported="false" />
+
+        <service
             android:name=".service.GuardianMonitorService"
             android:enabled="true"
             android:exported="false"
