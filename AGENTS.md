@@ -38,12 +38,12 @@ No white backgrounds. Cards use `RoundedCornerShape(16.dp)`. Chips/badges use `R
 
 ## Phase Checklist
 - [x] Phase 0 — Notification Panel (NotificationsScreen, NotificationViewModel, NotificationRepository, FCM service, channels)
-- [ ] Phase 1 — Firestore Pairing (pairCodes lookup, pairRequests, pairs, duplicate block, unpair)
-- [ ] Phase 2 — Emergency Firestore docs + foreground service location writes to Firestore
-- [ ] Phase 3 — Multi-emergency notification cards
-- [ ] Phase 4 — Live Firestore → osmdroid tracking
-- [ ] Phase 5 — Resolve flow + resolved-card final location
-- [ ] Security rules (`firestore.rules`)
+- [x] Phase 1 — Firestore Pairing (pairCodes lookup, pairRequests, pairs, duplicate block, unpair)
+- [x] Phase 2 — Emergency Firestore docs + foreground service location writes to Firestore
+- [x] Phase 3 — Multi-emergency notification cards
+- [x] Phase 4 — Live Firestore → osmdroid tracking
+- [x] Phase 5 — Resolve flow + resolved-card final location
+- [x] Security rules (`firestore.rules`)
 - [ ] Offline persistence, SMS fallback, expired-code errors
 
 ## Emulator Test Steps (after each phase)
