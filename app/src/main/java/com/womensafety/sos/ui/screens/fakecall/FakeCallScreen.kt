@@ -12,21 +12,27 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
@@ -73,13 +79,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.womensafety.sos.ui.components.AppTopBar
 import com.womensafety.sos.ui.theme.AlertRed
 import com.womensafety.sos.ui.theme.DarkBackground
-import com.womensafety.sos.ui.theme.DarkSurface
 import com.womensafety.sos.ui.theme.DarkSurfaceVariant
 import com.womensafety.sos.ui.theme.SafetyGreen
 import com.womensafety.sos.ui.theme.TrustBlue
@@ -211,10 +217,15 @@ fun FakeCallSetupView(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .background(DarkBackground)
-                .padding(20.dp)
+                .imePadding(),
+            contentAlignment = Alignment.TopCenter
         ) {
             Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 580.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Card(
@@ -307,7 +318,7 @@ fun FakeCallSetupView(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 if (scheduledCountdown > 0) {
                     Card(
@@ -379,6 +390,8 @@ fun FakeCallSetupView(
                         Text("Ring Phone Now", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
@@ -412,43 +425,35 @@ fun IncomingCallView(
         label = "PulseAlpha"
     )
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF0F172A))
-            .padding(28.dp),
+            .padding(20.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Header Settings shortcut
+        val screenWidth = maxWidth
+        val screenHeight = maxHeight
+        val isLandscape = screenWidth > screenHeight && screenHeight < 600.dp
+
+        if (isLandscape) {
+            // Landscape 2-Column Incoming Call Layout
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.End
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onOpenSettings) {
-                    Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings", tint = Color.LightGray)
-                }
-            }
-
-            // Caller Info & Pulsing Avatar
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(contentAlignment = Alignment.Center) {
-                    // Pulsing Ring
+                // Left: Avatar & Caller Info
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    modifier = Modifier.weight(1.2f)
+                ) {
                     Box(
                         modifier = Modifier
-                            .size(140.dp * pulseScale)
-                            .clip(CircleShape)
-                            .background(TrustBlue.copy(alpha = pulseAlpha))
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(110.dp)
+                            .size(90.dp)
                             .clip(CircleShape)
                             .background(Color(0xFF1E293B)),
                         contentAlignment = Alignment.Center
@@ -457,84 +462,203 @@ fun IncomingCallView(
                             imageVector = Icons.Default.Person,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(64.dp)
+                            modifier = Modifier.size(50.dp)
+                        )
+                    }
+
+                    Column {
+                        Text(
+                            text = callerName,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = callerNumber,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.LightGray
+                        )
+                        Text(
+                            text = "Incoming Call...",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = SafetyGreen
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                // Right: Accept & Decline Actions
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(32.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Decline (Red)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        IconButton(
+                            onClick = onDecline,
+                            modifier = Modifier
+                                .size(68.dp)
+                                .clip(CircleShape)
+                                .background(AlertRed)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CallEnd,
+                                contentDescription = "Decline",
+                                tint = Color.White,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(text = "Decline", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
 
-                Text(
-                    text = callerName,
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = callerNumber,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.LightGray
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Text(
-                    text = "Incoming Call...",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = SafetyGreen
-                )
+                    // Accept (Green)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        IconButton(
+                            onClick = onAccept,
+                            modifier = Modifier
+                                .size(68.dp)
+                                .clip(CircleShape)
+                                .background(SafetyGreen)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Call,
+                                contentDescription = "Accept",
+                                tint = Color.White,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(text = "Accept", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
-
-            // Accept & Decline Buttons
-            Row(
+        } else {
+            // Portrait Layout with safe scrolling
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 40.dp, start = 16.dp, end = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Decline (Red)
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconButton(
-                        onClick = onDecline,
-                        modifier = Modifier
-                            .size(76.dp)
-                            .clip(CircleShape)
-                            .background(AlertRed)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CallEnd,
-                            contentDescription = "Decline",
-                            tint = Color.White,
-                            modifier = Modifier.size(36.dp)
-                        )
+                // Header Settings shortcut
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings", tint = Color.LightGray)
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "Decline", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 }
 
-                // Accept (Green)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Caller Info & Pulsing Avatar
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconButton(
-                        onClick = onAccept,
-                        modifier = Modifier
-                            .size(76.dp)
-                            .clip(CircleShape)
-                            .background(SafetyGreen)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Call,
-                            contentDescription = "Accept",
-                            tint = Color.White,
-                            modifier = Modifier.size(36.dp)
+                    Box(contentAlignment = Alignment.Center) {
+                        // Pulsing Ring
+                        Box(
+                            modifier = Modifier
+                                .size(130.dp * pulseScale)
+                                .clip(CircleShape)
+                                .background(TrustBlue.copy(alpha = pulseAlpha))
                         )
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF1E293B)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(56.dp)
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "Accept", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        text = callerName,
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = callerNumber,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.LightGray
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = "Incoming Call...",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = SafetyGreen
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Accept & Decline Buttons
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 420.dp)
+                        .padding(bottom = 24.dp, start = 20.dp, end = 20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Decline (Red)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        IconButton(
+                            onClick = onDecline,
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape)
+                                .background(AlertRed)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CallEnd,
+                                contentDescription = "Decline",
+                                tint = Color.White,
+                                modifier = Modifier.size(34.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "Decline", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
+
+                    // Accept (Green)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        IconButton(
+                            onClick = onAccept,
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape)
+                                .background(SafetyGreen)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Call,
+                                contentDescription = "Accept",
+                                tint = Color.White,
+                                modifier = Modifier.size(34.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "Accept", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }
@@ -563,198 +687,326 @@ fun InCallActiveView(
     val seconds = callSeconds % 60
     val durationFormatted = String.format("%02d:%02d", minutes, seconds)
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF0F172A))
-            .padding(24.dp),
+            .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Caller Info & Timer
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 36.dp)
+        val screenWidth = maxWidth
+        val screenHeight = maxHeight
+        val isLandscape = screenWidth > screenHeight && screenHeight < 600.dp
+
+        if (isLandscape) {
+            // Landscape 2-Column In-Call View
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = callerName,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = callerNumber,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = if (isOnHold) "CALL ON HOLD" else durationFormatted,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isOnHold) Color.Yellow else SafetyGreen
-                )
-            }
-
-            // Center Content: Keypad OR 6 In-Call Control Tiles
-            if (showKeypad) {
-                // Interactive In-Call Dialpad Overlay
+                // Left Column: Caller Details & End Call
                 Column(
+                    modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    // Display typed numbers with backspace
-                    Row(
+                    Text(
+                        text = callerName,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = callerNumber,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = if (isOnHold) "CALL ON HOLD" else durationFormatted,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isOnHold) Color.Yellow else SafetyGreen
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    IconButton(
+                        onClick = onEndCall,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .size(60.dp)
+                            .clip(CircleShape)
+                            .background(AlertRed)
                     ) {
-                        Text(
-                            text = dialedDigits.ifBlank { " " },
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            color = Color.White
+                        Icon(
+                            imageVector = Icons.Default.CallEnd,
+                            contentDescription = "End Call",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
                         )
-                        if (dialedDigits.isNotEmpty()) {
-                            IconButton(onClick = onDeleteDigit) {
-                                Icon(imageVector = Icons.AutoMirrored.Filled.Backspace, contentDescription = "Delete", tint = Color.LightGray)
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Keypad grid
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                            KeypadButton("1", "") { onKeypadDigit('1') }
-                            KeypadButton("2", "ABC") { onKeypadDigit('2') }
-                            KeypadButton("3", "DEF") { onKeypadDigit('3') }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                            KeypadButton("4", "GHI") { onKeypadDigit('4') }
-                            KeypadButton("5", "JKL") { onKeypadDigit('5') }
-                            KeypadButton("6", "MNO") { onKeypadDigit('6') }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                            KeypadButton("7", "PQRS") { onKeypadDigit('7') }
-                            KeypadButton("8", "TUV") { onKeypadDigit('8') }
-                            KeypadButton("9", "WXYZ") { onKeypadDigit('9') }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                            KeypadButton("*", "") { onKeypadDigit('*') }
-                            KeypadButton("0", "+") { onKeypadDigit('0') }
-                            KeypadButton("#", "") { onKeypadDigit('#') }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Button(
-                        onClick = onToggleKeypad,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Text("Hide Keypad", color = Color.White)
                     }
                 }
-            } else {
-                // 6 Interactive Call Controls (2 rows of 3)
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    // Row 1
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        CallTileButton(
-                            icon = if (isMuted) Icons.Default.MicOff else Icons.Default.Mic,
-                            label = if (isMuted) "Unmute" else "Mute",
-                            isActive = isMuted,
-                            onClick = onToggleMute
-                        )
-                        CallTileButton(
-                            icon = Icons.Default.Dialpad,
-                            label = "Keypad",
-                            isActive = false,
-                            onClick = onToggleKeypad
-                        )
-                        CallTileButton(
-                            icon = if (isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
-                            label = if (isSpeakerOn) "Speaker" else "Earpiece",
-                            isActive = isSpeakerOn,
-                            onClick = onToggleSpeaker
-                        )
-                    }
 
-                    // Row 2
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        CallTileButton(
-                            icon = Icons.Default.Phone,
-                            label = "Add Call",
-                            isActive = false,
-                            onClick = { /* simulated */ }
+                // Right Column: Controls or Dialpad
+                Box(
+                    modifier = Modifier
+                        .weight(1.3f)
+                        .verticalScroll(rememberScrollState()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (showKeypad) {
+                        DialpadView(
+                            dialedDigits = dialedDigits,
+                            onKeypadDigit = onKeypadDigit,
+                            onDeleteDigit = onDeleteDigit,
+                            onToggleKeypad = onToggleKeypad,
+                            buttonSize = 48.dp
                         )
-                        CallTileButton(
-                            icon = Icons.Default.Videocam,
-                            label = "FaceTime",
-                            isActive = false,
-                            onClick = { /* simulated */ }
-                        )
-                        CallTileButton(
-                            icon = if (isOnHold) Icons.Default.PlayArrow else Icons.Default.Pause,
-                            label = if (isOnHold) "Resume" else "Hold",
-                            isActive = isOnHold,
-                            onClick = onToggleHold
+                    } else {
+                        CallControlsGrid(
+                            isMuted = isMuted,
+                            isSpeakerOn = isSpeakerOn,
+                            isOnHold = isOnHold,
+                            onToggleMute = onToggleMute,
+                            onToggleSpeaker = onToggleSpeaker,
+                            onToggleHold = onToggleHold,
+                            onToggleKeypad = onToggleKeypad
                         )
                     }
                 }
             }
-
-            // Red End Call Button
+        } else {
+            // Portrait In-Call View with Safe Scrolling
             Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 500.dp)
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(bottom = 36.dp)
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(
-                    onClick = onEndCall,
-                    modifier = Modifier
-                        .size(76.dp)
-                        .clip(CircleShape)
-                        .background(AlertRed)
+                // Caller Info & Timer
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(top = 24.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.CallEnd,
-                        contentDescription = "End Call",
-                        tint = Color.White,
-                        modifier = Modifier.size(36.dp)
+                    Text(
+                        text = callerName,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = callerNumber,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = if (isOnHold) "CALL ON HOLD" else durationFormatted,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isOnHold) Color.Yellow else SafetyGreen
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "End Call", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Center Content: Keypad OR In-Call Control Tiles
+                if (showKeypad) {
+                    DialpadView(
+                        dialedDigits = dialedDigits,
+                        onKeypadDigit = onKeypadDigit,
+                        onDeleteDigit = onDeleteDigit,
+                        onToggleKeypad = onToggleKeypad,
+                        buttonSize = 62.dp
+                    )
+                } else {
+                    CallControlsGrid(
+                        isMuted = isMuted,
+                        isSpeakerOn = isSpeakerOn,
+                        isOnHold = isOnHold,
+                        onToggleMute = onToggleMute,
+                        onToggleSpeaker = onToggleSpeaker,
+                        onToggleHold = onToggleHold,
+                        onToggleKeypad = onToggleKeypad
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Red End Call Button
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(bottom = 24.dp)
+                ) {
+                    IconButton(
+                        onClick = onEndCall,
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(AlertRed)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CallEnd,
+                            contentDescription = "End Call",
+                            tint = Color.White,
+                            modifier = Modifier.size(34.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(text = "End Call", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
+        }
+    }
+}
+
+@Composable
+fun DialpadView(
+    dialedDigits: String,
+    onKeypadDigit: (Char) -> Unit,
+    onDeleteDigit: () -> Unit,
+    onToggleKeypad: () -> Unit,
+    buttonSize: Dp = 62.dp
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        // Display typed numbers with backspace
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = dialedDigits.ifBlank { " " },
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                color = Color.White
+            )
+            if (dialedDigits.isNotEmpty()) {
+                IconButton(onClick = onDeleteDigit) {
+                    Icon(imageVector = Icons.AutoMirrored.Filled.Backspace, contentDescription = "Delete", tint = Color.LightGray)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Keypad grid
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                KeypadButton("1", "", size = buttonSize) { onKeypadDigit('1') }
+                KeypadButton("2", "ABC", size = buttonSize) { onKeypadDigit('2') }
+                KeypadButton("3", "DEF", size = buttonSize) { onKeypadDigit('3') }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                KeypadButton("4", "GHI", size = buttonSize) { onKeypadDigit('4') }
+                KeypadButton("5", "JKL", size = buttonSize) { onKeypadDigit('5') }
+                KeypadButton("6", "MNO", size = buttonSize) { onKeypadDigit('6') }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                KeypadButton("7", "PQRS", size = buttonSize) { onKeypadDigit('7') }
+                KeypadButton("8", "TUV", size = buttonSize) { onKeypadDigit('8') }
+                KeypadButton("9", "WXYZ", size = buttonSize) { onKeypadDigit('9') }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                KeypadButton("*", "", size = buttonSize) { onKeypadDigit('*') }
+                KeypadButton("0", "+", size = buttonSize) { onKeypadDigit('0') }
+                KeypadButton("#", "", size = buttonSize) { onKeypadDigit('#') }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Button(
+            onClick = onToggleKeypad,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Text("Hide Keypad", color = Color.White, fontSize = 13.sp)
+        }
+    }
+}
+
+@Composable
+fun CallControlsGrid(
+    isMuted: Boolean,
+    isSpeakerOn: Boolean,
+    isOnHold: Boolean,
+    onToggleMute: () -> Unit,
+    onToggleSpeaker: () -> Unit,
+    onToggleHold: () -> Unit,
+    onToggleKeypad: () -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        // Row 1
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            CallTileButton(
+                icon = if (isMuted) Icons.Default.MicOff else Icons.Default.Mic,
+                label = if (isMuted) "Unmute" else "Mute",
+                isActive = isMuted,
+                onClick = onToggleMute
+            )
+            CallTileButton(
+                icon = Icons.Default.Dialpad,
+                label = "Keypad",
+                isActive = false,
+                onClick = onToggleKeypad
+            )
+            CallTileButton(
+                icon = if (isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                label = if (isSpeakerOn) "Speaker" else "Earpiece",
+                isActive = isSpeakerOn,
+                onClick = onToggleSpeaker
+            )
+        }
+
+        // Row 2
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            CallTileButton(
+                icon = Icons.Default.Phone,
+                label = "Add Call",
+                isActive = false,
+                onClick = { /* simulated */ }
+            )
+            CallTileButton(
+                icon = Icons.Default.Videocam,
+                label = "FaceTime",
+                isActive = false,
+                onClick = { /* simulated */ }
+            )
+            CallTileButton(
+                icon = if (isOnHold) Icons.Default.PlayArrow else Icons.Default.Pause,
+                label = if (isOnHold) "Resume" else "Hold",
+                isActive = isOnHold,
+                onClick = onToggleHold
+            )
         }
     }
 }
@@ -768,11 +1020,11 @@ fun CallTileButton(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(80.dp)
+        modifier = Modifier.width(76.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(64.dp)
+                .size(60.dp)
                 .clip(CircleShape)
                 .background(if (isActive) Color.White else Color(0xFF1E293B))
                 .clickable { onClick() },
@@ -782,10 +1034,10 @@ fun CallTileButton(
                 imageVector = icon,
                 contentDescription = label,
                 tint = if (isActive) Color.Black else Color.White,
-                modifier = Modifier.size(30.dp)
+                modifier = Modifier.size(28.dp)
             )
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = label,
             color = Color.LightGray,
@@ -799,11 +1051,12 @@ fun CallTileButton(
 fun KeypadButton(
     number: String,
     subText: String,
+    size: Dp = 62.dp,
     onClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
-            .size(68.dp)
+            .size(size)
             .clip(CircleShape)
             .background(Color(0xFF1E293B))
             .clickable { onClick() },
@@ -813,10 +1066,10 @@ fun KeypadButton(
             Text(
                 text = number,
                 color = Color.White,
-                fontSize = 22.sp,
+                fontSize = if (size < 54.dp) 18.sp else 22.sp,
                 fontWeight = FontWeight.Bold
             )
-            if (subText.isNotEmpty()) {
+            if (subText.isNotEmpty() && size >= 54.dp) {
                 Text(
                     text = subText,
                     color = Color.Gray,

@@ -1,6 +1,10 @@
 package com.womensafety.sos.ui.screens.contacts
 
+import android.Manifest
+import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import android.provider.ContactsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,15 +21,19 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -75,6 +83,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.womensafety.sos.data.entity.TrustedContact
+import com.womensafety.sos.data.util.ContactImportHelper
+import com.womensafety.sos.data.util.ContactImportResult
 import com.womensafety.sos.data.util.PhoneUtils
 import com.womensafety.sos.ui.components.AppTopBar
 import com.womensafety.sos.ui.theme.AlertRed
@@ -109,50 +119,84 @@ fun TrustedContactsScreen(
     val isPhoneValid = remember(inputPhone) { PhoneUtils.isValidPhoneNumber(inputPhone) }
     val isNameValid = remember(inputName) { inputName.trim().length >= 2 }
 
-    // Native Contact Picker Contract
-    val contactPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickContact()
-    ) { uri ->
-        uri?.let {
-            val cursor = context.contentResolver.query(it, null, null, null, null)
-            cursor?.use { c ->
-                if (c.moveToFirst()) {
-                    val nameIndex = c.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
-                    val idIndex = c.getColumnIndex(ContactsContract.Contacts._ID)
-                    val hasPhoneIndex = c.getColumnIndex(ContactsContract.Contacts.HAS_PHONE_NUMBER)
-
-                    val name = if (nameIndex != -1) c.getString(nameIndex) else "Contact"
-                    val contactId = if (idIndex != -1) c.getString(idIndex) else ""
-                    val hasPhone = if (hasPhoneIndex != -1) c.getInt(hasPhoneIndex) else 0
-
-                    var phone = ""
-                    if (hasPhone > 0) {
-                        val pCursor = context.contentResolver.query(
-                            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                            null,
-                            "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
-                            arrayOf(contactId),
-                            null
-                        )
-                        pCursor?.use { pc ->
-                            if (pc.moveToFirst()) {
-                                val pIndex = pc.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                                if (pIndex != -1) phone = pc.getString(pIndex)
-                            }
-                        }
-                    }
-
-                    if (PhoneUtils.isValidPhoneNumber(phone)) {
-                        viewModel.addContact(name, phone, "Friend")
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar("Added $name to emergency contacts")
-                        }
-                    } else if (phone.isNotBlank()) {
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar("Invalid phone number format: $phone")
-                        }
-                    }
+    // Scalable, crash-proof contact import callback
+    val onContactPicked: (Uri) -> Unit = { uri ->
+        val existingNumbers = contacts.map { it.phoneNumber }
+        when (val result = ContactImportHelper.resolveContact(context, uri, existingNumbers)) {
+            is ContactImportResult.Success -> {
+                viewModel.addContact(result.name, result.phoneNumber, "Friend")
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Added ${result.name} (${result.phoneNumber}) to emergency contacts")
                 }
+            }
+            is ContactImportResult.Duplicate -> {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("${result.name} (${result.phoneNumber}) is already in your emergency contacts")
+                }
+            }
+            is ContactImportResult.NoPhoneNumber -> {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("The selected contact does not have a phone number. Please add manually.")
+                }
+            }
+            is ContactImportResult.InvalidPhoneNumber -> {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Invalid phone number format (${result.rawNumber}) in selected contact.")
+                }
+            }
+            is ContactImportResult.PermissionRequired -> {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Contacts permission required to import phone numbers.")
+                }
+            }
+            is ContactImportResult.Failure -> {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Failed to import contact: ${result.message}")
+                }
+            }
+        }
+    }
+
+    // Android Contract Contact Picker Launcher
+    val contactPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val contactUri: Uri? = result.data?.data
+            if (contactUri != null) {
+                onContactPicked(contactUri)
+            } else {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("No contact selected.")
+                }
+            }
+        }
+    }
+
+    fun launchContactPicker() {
+        val intent = Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)
+        try {
+            contactPickerLauncher.launch(intent)
+        } catch (e: ActivityNotFoundException) {
+            val fallbackIntent = Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI)
+            try {
+                contactPickerLauncher.launch(fallbackIntent)
+            } catch (ex: Exception) {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("No contacts application found on this device.")
+                }
+            }
+        }
+    }
+
+    val contactsPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            launchContactPicker()
+        } else {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar("Permission denied. You can still add contacts manually.")
             }
         }
     }
@@ -186,11 +230,13 @@ fun TrustedContactsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(DarkBackground)
+                .background(DarkBackground),
+            contentAlignment = Alignment.TopCenter
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .widthIn(max = 680.dp)
                     .padding(16.dp)
             ) {
                 // Info Header Card
@@ -228,7 +274,13 @@ fun TrustedContactsScreen(
 
                 // Import Contacts Button
                 Button(
-                    onClick = { contactPickerLauncher.launch(null) },
+                    onClick = {
+                        if (ContactImportHelper.hasPermission(context)) {
+                            launchContactPicker()
+                        } else {
+                            contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                        }
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
@@ -297,11 +349,12 @@ fun TrustedContactsScreen(
                 }
             }
 
-            // Validated Manual Add Contact Dialog
+            // Validated Manual Add Contact Dialog with Responsive Scrolling
             if (showAddDialog) {
                 AlertDialog(
                     onDismissRequest = { showAddDialog = false },
                     containerColor = DarkSurface,
+                    modifier = Modifier.widthIn(max = 520.dp),
                     title = {
                         Text(
                             text = "Add Trusted Contact",
@@ -313,7 +366,10 @@ fun TrustedContactsScreen(
                     text = {
                         Column(
                             verticalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 400.dp)
+                                .verticalScroll(rememberScrollState())
                         ) {
                             // Full Name Input
                             OutlinedTextField(
@@ -350,7 +406,6 @@ fun TrustedContactsScreen(
                             OutlinedTextField(
                                 value = inputPhone,
                                 onValueChange = { raw ->
-                                    // Only allow valid phone characters: digits, +, -, spaces, ()
                                     val filtered = raw.filter { it.isDigit() || it == '+' || it == '-' || it == ' ' || it == '(' || it == ')' }
                                     if (filtered.length <= 18) {
                                         inputPhone = filtered
@@ -520,39 +575,35 @@ fun ContactItemCard(
                         if (contact.priorityRank == 1) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "TOP PRIORITY",
+                                text = "FIRST DIAL",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = AlertRed,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.sp
+                                fontWeight = FontWeight.ExtraBold
                             )
                         }
                     }
                     Text(
-                        text = "${contact.relationship} • ${PhoneUtils.formatForDisplay(contact.phoneNumber)}",
+                        text = "${contact.relationship} • ${contact.phoneNumber}",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.LightGray
                     )
                 }
             }
 
+            // Priority reordering & Delete buttons
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onMoveUp, enabled = !isFirst) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowUpward,
-                        contentDescription = "Move Up",
-                        tint = if (!isFirst) Color.White else Color.DarkGray
-                    )
+                if (!isFirst) {
+                    IconButton(onClick = onMoveUp, modifier = Modifier.size(36.dp)) {
+                        Icon(imageVector = Icons.Default.ArrowUpward, contentDescription = "Move Up", tint = Color.LightGray)
+                    }
                 }
-                IconButton(onClick = onMoveDown, enabled = !isLast) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowDownward,
-                        contentDescription = "Move Down",
-                        tint = if (!isLast) Color.White else Color.DarkGray
-                    )
+                if (!isLast) {
+                    IconButton(onClick = onMoveDown, modifier = Modifier.size(36.dp)) {
+                        Icon(imageVector = Icons.Default.ArrowDownward, contentDescription = "Move Down", tint = Color.LightGray)
+                    }
                 }
-                IconButton(onClick = onDelete) {
-                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = AlertRed)
+                IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = AlertRed.copy(alpha = 0.8f))
                 }
             }
         }

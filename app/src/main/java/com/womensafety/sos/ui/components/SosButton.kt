@@ -174,7 +174,7 @@ fun SosButton(
 
             // Hold-Progress Countdown Ring (drawArc)
             if (isHolding && holdProgress > 0f) {
-                val strokeWidth = 14.dp.toPx()
+                val strokeWidth = ((size.value / 260f) * 14f).coerceAtLeast(8f).dp.toPx()
                 val arcSize = Size((outerRadius * 2) - strokeWidth, (outerRadius * 2) - strokeWidth)
                 val topLeft = Offset(centerOffset.x - arcSize.width / 2, centerOffset.y - arcSize.height / 2)
 
@@ -202,7 +202,11 @@ fun SosButton(
             }
         }
 
-        // Inner Label Text & Countdown Display
+        // Inner Label Text & Countdown Display with adaptive font scaling
+        val baseFontSize = if (isHolding) 24f else 28f
+        val adaptiveFontSize = ((size.value / 260f) * baseFontSize).coerceIn(15f, 32f).sp
+        val adaptiveLineHeight = ((size.value / 260f) * 32f).coerceIn(18f, 38f).sp
+
         Text(
             text = when {
                 isHolding && isActive -> "CANCEL\n${String.format("%.1fs", (1.0f - holdProgress) * 2)}"
@@ -211,9 +215,9 @@ fun SosButton(
                 else -> "SOS\nHOLD 2s"
             },
             color = Color.White,
-            fontSize = if (isHolding) 24.sp else 28.sp,
+            fontSize = adaptiveFontSize,
             fontWeight = FontWeight.ExtraBold,
-            lineHeight = 32.sp,
+            lineHeight = adaptiveLineHeight,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }

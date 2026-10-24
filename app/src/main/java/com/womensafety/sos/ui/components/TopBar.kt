@@ -5,7 +5,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -19,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.womensafety.sos.ui.theme.AlertRed
 import com.womensafety.sos.ui.theme.DarkSurface
 
@@ -28,6 +32,8 @@ fun AppTopBar(
     title: String = "WOMEN SAFETY SOS",
     isSosActive: Boolean = false,
     onBackClick: (() -> Unit)? = null,
+    unreadNotificationCount: Int = 0,
+    onNotificationClick: (() -> Unit)? = null,
     actions: @Composable (() -> Unit)? = null
 ) {
     TopAppBar(
@@ -61,6 +67,31 @@ fun AppTopBar(
             }
         },
         actions = {
+            if (onNotificationClick != null) {
+                IconButton(onClick = onNotificationClick) {
+                    BadgedBox(
+                        badge = {
+                            if (unreadNotificationCount > 0) {
+                                Badge(
+                                    containerColor = AlertRed,
+                                    contentColor = Color.White
+                                ) {
+                                    Text(
+                                        text = if (unreadNotificationCount > 99) "99+" else unreadNotificationCount.toString(),
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Notifications",
+                            tint = Color.White
+                        )
+                    }
+                }
+            }
             actions?.invoke()
         },
         colors = TopAppBarDefaults.topAppBarColors(

@@ -11,11 +11,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -82,91 +85,99 @@ fun EmergencyCallPanel(
         sheetState = sheetState,
         containerColor = DarkSurface
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.TopCenter
         ) {
-            Text(
-                text = "EMERGENCY CALL PANEL",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = AlertRed
-            )
-            Text(
-                text = "Tap to immediately dial trusted contacts or official helplines",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.LightGray,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            // National / Official Helplines Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 560.dp)
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
             ) {
-                Button(
-                    onClick = { initiateCall("112") },
-                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(54.dp)
-                ) {
-                    Icon(imageVector = Icons.Default.LocalPolice, contentDescription = "Police")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Police (112)", fontWeight = FontWeight.Bold)
-                }
+                Text(
+                    text = "EMERGENCY CALL PANEL",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = AlertRed
+                )
+                Text(
+                    text = "Tap to immediately dial trusted contacts or official helplines",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.LightGray,
+                    modifier = Modifier.padding(bottom = 14.dp)
+                )
 
-                Button(
-                    onClick = { initiateCall("1091") },
-                    colors = ButtonDefaults.buttonColors(containerColor = TrustBlue),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(54.dp)
+                // National / Official Helplines Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.SupportAgent, contentDescription = "Helpline")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Helpline (1091)", fontWeight = FontWeight.Bold)
-                }
-            }
+                    Button(
+                        onClick = { initiateCall("112") },
+                        colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .defaultMinSize(minHeight = 52.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.LocalPolice, contentDescription = "Police")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Police (112)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Text(
-                text = "Trusted Emergency Contacts",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            if (contacts.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "No contacts added yet. Add trusted contacts in the Contacts tab.",
-                        color = Color.Gray,
-                        fontSize = 14.sp
-                    )
-                }
-            } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.height(240.dp)
-                ) {
-                    items(contacts) { contact ->
-                        ContactCallRow(contact = contact, onCallClick = { initiateCall(contact.phoneNumber) })
+                    Button(
+                        onClick = { initiateCall("1091") },
+                        colors = ButtonDefaults.buttonColors(containerColor = TrustBlue),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .defaultMinSize(minHeight = 52.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.SupportAgent, contentDescription = "Helpline")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Helpline (1091)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Text(
+                    text = "Trusted Emergency Contacts",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                if (contacts.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No contacts added yet. Add trusted contacts in the Contacts tab.",
+                            color = Color.Gray,
+                            fontSize = 14.sp
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 280.dp)
+                    ) {
+                        items(contacts) { contact ->
+                            ContactCallRow(contact = contact, onCallClick = { initiateCall(contact.phoneNumber) })
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 }
@@ -190,7 +201,10 @@ fun ContactCallRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -232,6 +246,8 @@ fun ContactCallRow(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.width(8.dp))
 
             Box(
                 modifier = Modifier

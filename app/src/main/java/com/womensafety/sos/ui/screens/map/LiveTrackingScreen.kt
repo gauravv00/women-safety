@@ -1,12 +1,16 @@
 package com.womensafety.sos.ui.screens.map
 
+import android.Manifest
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,12 +18,15 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.LocationOn
@@ -31,6 +38,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -42,6 +50,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +64,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -98,25 +108,63 @@ fun LiveTrackingScreen(
         onBackClick?.invoke()
     }
 
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (fineGranted || coarseGranted) {
+            viewModel.refreshLocation()
+        } else {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar("Location permission is needed to show your live location.")
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!viewModel.hasLocationPermission()) {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
+
     // Determine currently viewed ward or self
     val selectedWard = pairedWards.find { it.wardPairingCode == selectedTargetCode }
     val isViewingWard = selectedWard != null
 
-    val mapLat: Double
-    val mapLng: Double
-    val displayLat: Double
-    val displayLng: Double
-
-    if (isViewingWard && selectedWard != null) {
-        mapLat = if (selectedWard.lastKnownLat != 0.0) selectedWard.lastKnownLat else 28.6139
-        mapLng = if (selectedWard.lastKnownLng != 0.0) selectedWard.lastKnownLng else 77.2090
-        displayLat = selectedWard.lastKnownLat
-        displayLng = selectedWard.lastKnownLng
+    val isLocationAvailable = if (isViewingWard) {
+        selectedWard != null && selectedWard.lastKnownLat != 0.0 && selectedWard.lastKnownLng != 0.0
     } else {
-        mapLat = debouncedLocation?.latitude ?: currentLocation?.latitude ?: 28.6139
-        mapLng = debouncedLocation?.longitude ?: currentLocation?.longitude ?: 77.2090
-        displayLat = currentLocation?.latitude ?: 28.6139
-        displayLng = currentLocation?.longitude ?: 77.2090
+        currentLocation != null
+    }
+
+    val displayLat: Double = if (isViewingWard) {
+        selectedWard?.lastKnownLat ?: 0.0
+    } else {
+        currentLocation?.latitude ?: 0.0
+    }
+
+    val displayLng: Double = if (isViewingWard) {
+        selectedWard?.lastKnownLng ?: 0.0
+    } else {
+        currentLocation?.longitude ?: 0.0
+    }
+
+    val mapLat: Double = if (isViewingWard) {
+        selectedWard?.lastKnownLat ?: displayLat
+    } else {
+        debouncedLocation?.latitude ?: currentLocation?.latitude ?: displayLat
+    }
+
+    val mapLng: Double = if (isViewingWard) {
+        selectedWard?.lastKnownLng ?: displayLng
+    } else {
+        debouncedLocation?.longitude ?: currentLocation?.longitude ?: displayLng
     }
 
     fun shareLiveLocation(lat: Double, lng: Double, label: String) {
@@ -151,21 +199,113 @@ fun LiveTrackingScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .background(DarkBackground)
         ) {
-            // OSM Map Rendering
-            OsmMap(
-                current = GeoPoint(mapLat, mapLng),
-                accuracyMeters = if (isViewingWard) 20.0 else (currentLocation?.accuracy?.toDouble() ?: 30.0),
-                path = if (isViewingWard) emptyList() else history.map { GeoPoint(it.first, it.second) },
-                accentColor = if (isViewingWard && selectedWard?.lastStatus.equals("ACTIVE", ignoreCase = true)) AlertRed else TrustBlue,
-                pathColor = AlertRed,
-                modifier = Modifier.fillMaxSize()
-            )
+            val screenWidth = maxWidth
+            val screenHeight = maxHeight
+            val isLandscape = screenWidth > screenHeight && screenHeight < 600.dp
+
+            // Location Display: OSM Map if coordinates ready, else acquiring GPS status
+            if (isLocationAvailable) {
+                OsmMap(
+                    current = GeoPoint(mapLat, mapLng),
+                    accuracyMeters = if (isViewingWard) 20.0 else (currentLocation?.accuracy?.toDouble() ?: 20.0),
+                    path = if (isViewingWard) emptyList() else history.map { GeoPoint(it.first, it.second) },
+                    accentColor = if (isViewingWard && selectedWard?.lastStatus.equals("ACTIVE", ignoreCase = true)) AlertRed else TrustBlue,
+                    pathColor = AlertRed,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(DarkBackground),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(32.dp)
+                    ) {
+                        if (isViewingWard) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = null,
+                                tint = TrustBlue,
+                                modifier = Modifier.size(56.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Waiting for ${selectedWard?.wardName ?: "Ward"} Location",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "No GPS broadcast received from this paired device yet.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.LightGray,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        } else {
+                            CircularProgressIndicator(
+                                color = AlertRed,
+                                strokeWidth = 3.dp,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Text(
+                                text = "Acquiring Real-Time GPS Location...",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = if (!viewModel.hasLocationPermission())
+                                    "Location permission is needed to pinpoint your exact coordinates."
+                                else
+                                    "Connecting to GPS satellites and cellular networks. Please ensure Location is enabled.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.LightGray,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            if (!viewModel.hasLocationPermission()) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = {
+                                        locationPermissionLauncher.launch(
+                                            arrayOf(
+                                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                                Manifest.permission.ACCESS_COARSE_LOCATION
+                                            )
+                                        )
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = TrustBlue),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text("Grant Location Permission", color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                            } else {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = { viewModel.refreshLocation() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Icon(imageVector = Icons.Default.NearMe, contentDescription = null, tint = SafetyGreen, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Retry GPS Fix", color = Color.White, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             // Top Target Selector Chips (My Location vs Paired Wards)
             Row(
@@ -212,17 +352,28 @@ fun LiveTrackingScreen(
                 }
             }
 
-            // Bottom Overlay Status & Action Card
+            // Bottom Overlay Status & Action Card (Responsive Positioning)
             Card(
                 colors = CardDefaults.cardColors(containerColor = DarkSurface),
                 shape = RoundedCornerShape(18.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp)
+                modifier = if (isLandscape) {
+                    Modifier
+                        .widthIn(max = 440.dp)
+                        .align(Alignment.BottomEnd)
+                        .padding(14.dp)
+                } else {
+                    Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 560.dp)
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp)
+                }
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier
+                        .padding(14.dp)
+                        .heightIn(max = if (isLandscape) 220.dp else Dp.Unspecified)
+                        .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     if (isViewingWard && selectedWard != null) {
@@ -260,14 +411,14 @@ fun LiveTrackingScreen(
                                     fontFamily = FontFamily.Monospace
                                 )
                                 Text(
-                                    text = "Lat: ${String.format("%.5f", displayLat)}, Lng: ${String.format("%.5f", displayLng)}",
+                                    text = if (isLocationAvailable) "Lat: ${String.format("%.5f", displayLat)}, Lng: ${String.format("%.5f", displayLng)}" else "Awaiting ward coordinates...",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color.Gray
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -275,7 +426,11 @@ fun LiveTrackingScreen(
                         ) {
                             Button(
                                 onClick = { openInGoogleMaps(displayLat, displayLng, selectedWard.wardName) },
-                                colors = ButtonDefaults.buttonColors(containerColor = TrustBlue),
+                                enabled = isLocationAvailable,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = TrustBlue,
+                                    disabledContainerColor = Color.DarkGray
+                                ),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
@@ -286,7 +441,11 @@ fun LiveTrackingScreen(
 
                             Button(
                                 onClick = { shareLiveLocation(displayLat, displayLng, selectedWard.wardName) },
-                                colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
+                                enabled = isLocationAvailable,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = DarkSurfaceVariant,
+                                    disabledContainerColor = Color.DarkGray
+                                ),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
@@ -309,25 +468,35 @@ fun LiveTrackingScreen(
                                     color = if (isServiceRunning) AlertRed else Color.White
                                 )
                                 Text(
-                                    text = "Lat: ${String.format("%.5f", displayLat)}, Lng: ${String.format("%.5f", displayLng)}",
+                                    text = if (isLocationAvailable) "Lat: ${String.format("%.5f", displayLat)}, Lng: ${String.format("%.5f", displayLng)}" else "Acquiring GPS fix...",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color.Gray
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         // Broadcast Live Location to Paired Guardians Button
                         Button(
                             onClick = {
-                                viewModel.broadcastLocationToGuardians(context) {
+                                if (isLocationAvailable) {
+                                    viewModel.broadcastLocationToGuardians(context) {
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("Live location shared to paired guardians")
+                                        }
+                                    }
+                                } else {
                                     coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Live location shared to paired guardians")
+                                        snackbarHostState.showSnackbar("Waiting for GPS coordinates before broadcast...")
                                     }
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = SafetyGreen),
+                            enabled = isLocationAvailable,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = SafetyGreen,
+                                disabledContainerColor = Color.DarkGray
+                            ),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -352,18 +521,30 @@ fun LiveTrackingScreen(
                             ) {
                                 Icon(imageVector = Icons.Default.Call, contentDescription = "Emergency Call", tint = Color.White)
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text(text = "Emergency Call", color = Color.White, fontWeight = FontWeight.Bold)
+                                Text(text = "Emergency Call", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
 
                             Button(
-                                onClick = { shareLiveLocation(displayLat, displayLng, "My Emergency") },
-                                colors = ButtonDefaults.buttonColors(containerColor = TrustBlue),
+                                onClick = {
+                                    if (isLocationAvailable) {
+                                        shareLiveLocation(displayLat, displayLng, "My Emergency")
+                                    } else {
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("Waiting for GPS coordinates...")
+                                        }
+                                    }
+                                },
+                                enabled = isLocationAvailable,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = TrustBlue,
+                                    disabledContainerColor = Color.DarkGray
+                                ),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Icon(imageVector = Icons.Default.Share, contentDescription = "Share", tint = Color.White)
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text(text = "Share Link", color = Color.White, fontWeight = FontWeight.Bold)
+                                Text(text = "Share Link", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                         }
                     }

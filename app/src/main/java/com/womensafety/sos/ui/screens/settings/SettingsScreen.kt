@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,9 +14,11 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,7 +39,9 @@ import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Vibration
+
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -63,6 +66,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -99,6 +104,7 @@ fun SettingsScreen(
     val settings by viewModel.settings.collectAsState()
     val pairedWards by viewModel.pairedWards.collectAsState()
 
+
     var showPairDialog by remember { mutableStateOf(false) }
     var inputWardCode by remember { mutableStateOf("") }
     var inputWardName by remember { mutableStateOf("") }
@@ -109,6 +115,25 @@ fun SettingsScreen(
 
     val isWardCodeValid = remember(inputWardCode) { PhoneUtils.isValidPairingCode(inputWardCode) }
     val isWardNameValid = remember(inputWardName) { inputWardName.trim().length >= 2 }
+    val pairRequestState by viewModel.pairRequestState.collectAsState()
+
+    LaunchedEffect(pairRequestState) {
+        when (val state = pairRequestState) {
+            is PairRequestState.Success -> {
+                showPairDialog = false
+                inputWardCode = ""
+                inputWardName = ""
+                pairAttempted = false
+                snackbarHostState.showSnackbar(state.message)
+                viewModel.resetPairRequestState()
+            }
+            is PairRequestState.Error -> {
+                snackbarHostState.showSnackbar(state.message)
+                viewModel.resetPairRequestState()
+            }
+            else -> Unit
+        }
+    }
 
     fun copyCodeToClipboard(code: String) {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -145,11 +170,13 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(DarkBackground)
+                .background(DarkBackground),
+            contentAlignment = Alignment.TopCenter
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .widthIn(max = 700.dp)
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -199,52 +226,133 @@ fun SettingsScreen(
                     }
                 }
 
-                // My Safety Pairing Code Card
+                // Shareable Safety Pairing Code Card
                 Card(
                     colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(imageVector = Icons.Default.QrCode, contentDescription = null, tint = TrustBlue)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Your Safety Pairing Code",
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Share this code with your guardian so their phone receives instant danger alerts and live location if you trigger SOS.",
+                            text = "Give this 6-character code to your family or guardian so they can track your live SOS broadcasts in real-time.",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.LightGray
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
 
-                        Row(
+                        // Highlighted Code Box
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(DarkBackground, RoundedCornerShape(10.dp))
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(DarkSurface)
+                                .padding(vertical = 12.dp, horizontal = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = settings.myPairingCode,
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = TrustBlue,
+                                fontFamily = FontFamily.Monospace,
+                                letterSpacing = 3.sp
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = { copyCodeToClipboard(settings.myPairingCode) },
+                                colors = ButtonDefaults.buttonColors(containerColor = DarkBackground),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Copy Code", color = Color.White, fontSize = 13.sp)
+                            }
+                            Button(
+                                onClick = { sharePairingCode(settings.myPairingCode) },
+                                colors = ButtonDefaults.buttonColors(containerColor = TrustBlue),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(imageVector = Icons.Default.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Share Code", color = Color.White, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+
+                // Paired Wards List
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(imageVector = Icons.Default.Security, contentDescription = null, tint = SafetyGreen)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Paired Wards / Friends",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                            IconButton(onClick = {
+                                inputWardName = ""
+                                inputWardCode = ""
+                                pairAttempted = false
+                                showPairDialog = true
+                            }) {
+                                Icon(imageVector = Icons.Default.Add, contentDescription = "Pair Ward", tint = SafetyGreen)
+                            }
+                        }
+
+                        if (pairedWards.isEmpty()) {
                             Text(
-                                text = settings.myPairingCode.ifBlank { "SOS-XXXXXX" },
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontFamily = FontFamily.Monospace,
-                                color = SafetyGreen
+                                text = "No wards paired yet. Tap 'Pair Ward' and enter their 6-character Safety Code to monitor them.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray,
+                                modifier = Modifier.padding(vertical = 8.dp)
                             )
-                            Row {
-                                IconButton(onClick = { copyCodeToClipboard(settings.myPairingCode) }) {
-                                    Icon(imageVector = Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color.White)
-                                }
-                                IconButton(onClick = { sharePairingCode(settings.myPairingCode) }) {
-                                    Icon(imageVector = Icons.Default.Share, contentDescription = "Share", tint = TrustBlue)
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                pairedWards.forEach { ward ->
+                                    PairedWardRow(
+                                        ward = ward,
+                                        onDelete = {
+                                            viewModel.deletePairedWard(ward.id)
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar("Unpaired ${ward.wardName}")
+                                            }
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -253,78 +361,14 @@ fun SettingsScreen(
 
                 // Guardian Monitoring Toggle Card
                 SettingSwitchCard(
-                    title = "Guardian Mode (Monitor Wards)",
-                    subtitle = "Listen for emergency SOS broadcasts and track live locations of paired family members.",
+                    title = "Guardian Background Monitor",
+                    subtitle = "Continuously poll Firebase for SOS emergencies triggered by your paired wards.",
                     icon = Icons.Default.Security,
                     checked = settings.guardianMonitoringEnabled,
                     onCheckedChange = { viewModel.setGuardianMonitoring(it, context) }
                 )
 
-                // Paired Wards List & Add Button
-                if (settings.guardianMonitoringEnabled) {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "Monitored Wards (${pairedWards.size})",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                                Button(
-                                    onClick = {
-                                        inputWardName = ""
-                                        inputWardCode = ""
-                                        pairAttempted = false
-                                        showPairDialog = true
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = TrustBlue),
-                                    shape = RoundedCornerShape(8.dp)
-                                ) {
-                                    Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(text = "Pair Ward", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            if (pairedWards.isEmpty()) {
-                                Text(
-                                    text = "No wards paired yet. Tap 'Pair Ward' and enter their 6-character Safety Code to monitor them.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Gray,
-                                    modifier = Modifier.padding(vertical = 8.dp)
-                                )
-                            } else {
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    pairedWards.forEach { ward ->
-                                        PairedWardRow(
-                                            ward = ward,
-                                            onDelete = {
-                                                viewModel.deletePairedWard(ward.id)
-                                                coroutineScope.launch {
-                                                    snackbarHostState.showSnackbar("Unpaired ${ward.wardName}")
-                                                }
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
+                // Emergency Triggers Section
                 Text(
                     text = "Emergency Trigger Settings",
                     style = MaterialTheme.typography.titleMedium,
@@ -348,8 +392,7 @@ fun SettingsScreen(
                     onCheckedChange = { viewModel.setLoudSiren(it) }
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
-
+                // Auto-Dialing & Escalation
                 Text(
                     text = "Auto-Dialing & Escalation",
                     style = MaterialTheme.typography.titleMedium,
@@ -395,8 +438,7 @@ fun SettingsScreen(
                     onCheckedChange = { viewModel.setSequentialEscalation(it) }
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
-
+                // Battery Awareness
                 Text(
                     text = "Battery & Performance",
                     style = MaterialTheme.typography.titleMedium,
@@ -415,11 +457,12 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Validated Pair Ward Dialog
+            // Validated Pair Ward Dialog with Responsive Scrolling
             if (showPairDialog) {
                 AlertDialog(
                     onDismissRequest = { showPairDialog = false },
                     containerColor = DarkSurface,
+                    modifier = Modifier.widthIn(max = 520.dp),
                     title = {
                         Text(
                             text = "Pair Protected Ward / Friend",
@@ -429,7 +472,13 @@ fun SettingsScreen(
                         )
                     },
                     text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 380.dp)
+                                .verticalScroll(rememberScrollState())
+                        ) {
                             // Ward Name Input
                             OutlinedTextField(
                                 value = inputWardName,
@@ -466,7 +515,6 @@ fun SettingsScreen(
                             OutlinedTextField(
                                 value = inputWardCode,
                                 onValueChange = { raw ->
-                                    // Strip spaces and uppercase
                                     val cleaned = raw.uppercase().filter { it.isLetterOrDigit() || it == '-' }
                                     if (cleaned.length <= 10) {
                                         inputWardCode = cleaned
@@ -524,19 +572,20 @@ fun SettingsScreen(
                             onClick = {
                                 pairAttempted = true
                                 if (isWardNameValid && isWardCodeValid) {
-                                    val normalized = PhoneUtils.normalizePairingCode(inputWardCode)
-                                    viewModel.addPairedWard(normalized, inputWardName)
-                                    showPairDialog = false
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Paired with $inputWardName ($normalized)")
-                                    }
+                                    viewModel.sendPairRequest(inputWardCode, inputWardName)
+                                    // dialog closed + snackbar shown via LaunchedEffect(pairRequestState)
                                 }
                             },
+                            enabled = pairRequestState !is PairRequestState.Loading,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isWardNameValid && isWardCodeValid) TrustBlue else TrustBlue.copy(alpha = 0.5f)
                             )
                         ) {
-                            Text("Pair Device", color = Color.White, fontWeight = FontWeight.Bold)
+                            if (pairRequestState is PairRequestState.Loading) {
+                                CircularProgressIndicator(color = Color.White, modifier = androidx.compose.ui.Modifier.size(18.dp), strokeWidth = 2.dp)
+                            } else {
+                                Text("Send Request", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
                         }
                     },
                     dismissButton = {
@@ -547,11 +596,12 @@ fun SettingsScreen(
                 )
             }
 
-            // Edit User Name Dialog
+            // Edit User Name Dialog with Responsive Bounds
             if (showEditNameDialog) {
                 AlertDialog(
                     onDismissRequest = { showEditNameDialog = false },
                     containerColor = DarkSurface,
+                    modifier = Modifier.widthIn(max = 480.dp),
                     title = { Text("Your Display Name", color = Color.White, fontWeight = FontWeight.Bold) },
                     text = {
                         OutlinedTextField(
