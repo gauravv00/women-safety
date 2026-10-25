@@ -17,8 +17,8 @@ private val DarkColorScheme = darkColorScheme(
     onPrimaryContainer = TextPrimaryDark,
     secondary = SafetyGreen,
     onSecondary = TextPrimaryDark,
-    secondaryContainer = SafetyGreenPressed,
-    onSecondaryContainer = TextPrimaryDark,
+    secondaryContainer = SafetyGreenContainer,
+    onSecondaryContainer = SafetyGreen,
     tertiary = TrustBlue,
     onTertiary = TextPrimaryDark,
     background = DarkBackground,
@@ -55,7 +55,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun WomenSafetyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false, // Preserve high-contrast emergency branding across all Android versions
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

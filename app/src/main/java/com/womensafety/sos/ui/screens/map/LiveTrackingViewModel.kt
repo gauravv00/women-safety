@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.womensafety.sos.data.firebase.FirebaseAuthManager
+import com.womensafety.sos.data.location.LocationAddressHelper
 import com.womensafety.sos.data.location.LocationTracker
 import com.womensafety.sos.data.model.EmergencyEvent
 import com.womensafety.sos.di.ServiceLocator
@@ -32,10 +33,17 @@ class LiveTrackingViewModel(
     private val _currentLocation = MutableStateFlow<Location?>(null)
     val currentLocation: StateFlow<Location?> = _currentLocation.asStateFlow()
 
+    private val _resolvedAddress = MutableStateFlow<String>("")
+    val resolvedAddress: StateFlow<String> = _resolvedAddress.asStateFlow()
+
+    private val _isRefreshingLocation = MutableStateFlow(false)
+    val isRefreshingLocation: StateFlow<Boolean> = _isRefreshingLocation.asStateFlow()
+
     val currentUserId: String
         get() = authManager.currentUserId
 
     private var observeEmergencyJob: Job? = null
+    private var addressJob: Job? = null
 
     init {
         // Continuously stream current device GPS so the map always has a live location
@@ -97,12 +105,27 @@ class LiveTrackingViewModel(
         }
     }
 
-    fun refreshLocation() {
+    fun resolveAddressForCoordinates(context: Context, lat: Double, lng: Double) {
+        if (lat == 0.0 && lng == 0.0) return
+        addressJob?.cancel()
+        addressJob = viewModelScope.launch {
+            val addr = LocationAddressHelper.getAddressFromCoordinates(context, lat, lng)
+            _resolvedAddress.value = addr
+        }
+    }
+
+    fun refreshLocation(context: Context? = null) {
         viewModelScope.launch {
-            val loc = locationTracker.getCurrentLocation(timeoutMs = 4000L)
+            _isRefreshingLocation.value = true
+            val loc = locationTracker.getCurrentLocation(timeoutMs = 5000L)
             if (loc != null) {
                 _currentLocation.value = loc
+                if (context != null) {
+                    val addr = LocationAddressHelper.getAddressFromCoordinates(context, loc.latitude, loc.longitude)
+                    _resolvedAddress.value = addr
+                }
             }
+            _isRefreshingLocation.value = false
         }
     }
 

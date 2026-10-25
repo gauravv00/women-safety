@@ -57,6 +57,14 @@ import com.womensafety.sos.ui.screens.notifications.NotificationsScreen
 import com.womensafety.sos.ui.screens.settings.SettingsScreen
 import com.womensafety.sos.ui.theme.AlertRed
 import com.womensafety.sos.ui.theme.DarkSurface
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Surface
+import androidx.compose.ui.text.font.FontWeight
+import com.womensafety.sos.ui.theme.DarkCardBorder
+import com.womensafety.sos.ui.theme.TrustBlue
+
 
 data class BottomNavItem(
     val route: String,
@@ -140,33 +148,47 @@ fun AppBottomBar(
     onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    NavigationBar(
-        modifier = modifier.height(64.dp),
-        containerColor = DarkSurface,
-        windowInsets = NavigationBarDefaults.windowInsets
+    Surface(
+        color = DarkSurface,
+        border = BorderStroke(1.dp, DarkCardBorder),
+        modifier = modifier.fillMaxWidth()
     ) {
-        items.forEach { item ->
-            val isSelected = currentRoute == item.route
-            NavigationBarItem(
-                icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
-                label = {
-                    Text(
-                        text = item.title,
-                        style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                selected = isSelected,
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = AlertRed,
-                    selectedTextColor = AlertRed,
-                    unselectedIconColor = Color.Gray,
-                    unselectedTextColor = Color.Gray,
-                    indicatorColor = Color.Transparent
-                ),
-                onClick = { onNavigate(item.route) }
-            )
+        NavigationBar(
+            modifier = Modifier.height(68.dp),
+            containerColor = DarkSurface,
+            windowInsets = NavigationBarDefaults.windowInsets
+        ) {
+            items.forEach { item ->
+                val isSelected = currentRoute == item.route
+                val activeColor = if (item.route == Screen.Home.route) AlertRed else TrustBlue
+                NavigationBarItem(
+                    icon = {
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = item.title,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = item.title,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    selected = isSelected,
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = activeColor,
+                        selectedTextColor = activeColor,
+                        unselectedIconColor = Color.Gray,
+                        unselectedTextColor = Color.Gray,
+                        indicatorColor = activeColor.copy(alpha = 0.15f)
+                    ),
+                    onClick = { onNavigate(item.route) }
+                )
+            }
         }
     }
 }
@@ -327,7 +349,13 @@ fun NavHostContainer(
             deepLinks = listOf(navDeepLink { uriPattern = "womensafety://notifications" })
         ) {
             NotificationsScreen(
-                onBackClick = { navController.popBackStack() },
+                onBackClick = {
+                    if (navController.previousBackStackEntry != null) {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(Screen.Home.route)
+                    }
+                },
                 onNavigateToTracking = { emergencyId ->
                     navController.navigate(Screen.Map.createRoute(emergencyId))
                 }
@@ -383,13 +411,25 @@ fun NavHostContainer(
 
         composable(Screen.FakeCall.route) {
             FakeCallScreen(
-                onDismiss = { navController.popBackStack() }
+                onDismiss = {
+                    if (navController.previousBackStackEntry != null) {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(Screen.Home.route)
+                    }
+                }
             )
         }
 
         composable(Screen.CheckIn.route) {
             SafetyCheckInScreen(
-                onBackClick = { navController.popBackStack() },
+                onBackClick = {
+                    if (navController.previousBackStackEntry != null) {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(Screen.Home.route)
+                    }
+                },
                 onTimerTriggeredSos = { navController.navigate(Screen.Home.route) }
             )
         }

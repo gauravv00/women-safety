@@ -10,6 +10,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -76,6 +77,11 @@ import com.womensafety.sos.ui.theme.AlertRedGradientStart
 import com.womensafety.sos.ui.theme.DarkBackground
 import com.womensafety.sos.ui.theme.DarkSurface
 import com.womensafety.sos.ui.theme.DarkSurfaceVariant
+import com.womensafety.sos.ui.theme.DarkCardBorder
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
 import com.womensafety.sos.ui.theme.SafetyGreen
 import com.womensafety.sos.ui.theme.TrustBlue
 
@@ -476,24 +482,24 @@ fun QuickActionGrid(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             QuickActionButton(
                 icon = Icons.Default.Call,
-                label = "Emergency\nPanel",
-                color = SafetyGreen,
-                modifier = Modifier.weight(1f), // horizontal split only
+                label = "Emergency\nCall Panel",
+                accentColor = SafetyGreen,
+                modifier = Modifier.weight(1f),
                 onClick = onEmergencyPanelClick
             )
 
             QuickActionButton(
                 icon = Icons.Default.LocationOn,
-                label = "Live\nTracking",
-                color = TrustBlue,
+                label = "Live GPS\nTracking",
+                accentColor = TrustBlue,
                 modifier = Modifier.weight(1f),
                 onClick = onNavigateToMap
             )
@@ -501,12 +507,12 @@ fun QuickActionGrid(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             QuickActionButton(
                 icon = Icons.AutoMirrored.Filled.PhoneCallback,
-                label = "Fake\nCall",
-                color = DarkSurfaceVariant,
+                label = "Fake Call\nEscape",
+                accentColor = Color(0xFFFFD600),
                 modifier = Modifier.weight(1f),
                 onClick = onNavigateToFakeCall
             )
@@ -514,7 +520,7 @@ fun QuickActionGrid(
             QuickActionButton(
                 icon = Icons.Default.Timer,
                 label = "Walking\nCheck-In",
-                color = DarkSurfaceVariant,
+                accentColor = Color(0xFFFF4081),
                 modifier = Modifier.weight(1f),
                 onClick = onNavigateToCheckIn
             )
@@ -526,37 +532,47 @@ fun QuickActionGrid(
 fun QuickActionButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
-    color: Color,
+    accentColor: Color,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = color),
-        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
+        border = BorderStroke(1.dp, DarkCardBorder),
+        shape = RoundedCornerShape(16.dp),
         modifier = modifier,
         onClick = onClick
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()          // width only. NEVER fillMaxSize: it stretched the tiles
-                .heightIn(min = 72.dp)   // minimum height, otherwise wraps content
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .fillMaxWidth()
+                .heightIn(min = 74.dp)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(accentColor.copy(alpha = 0.15f))
+                    .border(1.dp, accentColor.copy(alpha = 0.35f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = label,
                 color = Color.White,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                lineHeight = 16.sp
+                lineHeight = 17.sp
             )
         }
     }

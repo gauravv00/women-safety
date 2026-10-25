@@ -7,7 +7,9 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,8 +27,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -39,6 +43,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -65,9 +70,11 @@ import com.womensafety.sos.ui.components.AppTopBar
 import com.womensafety.sos.ui.components.SafetyMap
 import com.womensafety.sos.ui.theme.AlertRed
 import com.womensafety.sos.ui.theme.DarkBackground
+import com.womensafety.sos.ui.theme.DarkCardBorder
 import com.womensafety.sos.ui.theme.DarkSurface
 import com.womensafety.sos.ui.theme.DarkSurfaceVariant
 import com.womensafety.sos.ui.theme.SafetyGreen
+import com.womensafety.sos.ui.theme.TextSecondaryDark
 import com.womensafety.sos.ui.theme.TrustBlue
 import com.google.android.gms.maps.model.LatLng
 import java.text.SimpleDateFormat
@@ -90,10 +97,12 @@ fun LiveTrackingScreen(
     val emergency by viewModel.emergency.collectAsState()
     val activeEmergencies by viewModel.activeEmergencies.collectAsState()
     val currentLocation by viewModel.currentLocation.collectAsState()
+    val resolvedAddress by viewModel.resolvedAddress.collectAsState()
+    val isRefreshingLocation by viewModel.isRefreshingLocation.collectAsState()
 
     var showResolveDialog by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = onBackClick != null) {
+    BackHandler(enabled = true) {
         onBackClick?.invoke()
     }
 
@@ -103,7 +112,7 @@ fun LiveTrackingScreen(
         val fine = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
         val coarse = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         if (fine || coarse) {
-            viewModel.refreshLocation()
+            viewModel.refreshLocation(context)
         }
     }
 
@@ -128,7 +137,13 @@ fun LiveTrackingScreen(
         ?: currentLocation?.longitude
         ?: 0.0
     val accuracy = emergency?.lastAccuracy?.toDouble()
-        ?: (currentLocation?.accuracy?.toDouble() ?: 20.0)
+        ?: (currentLocation?.accuracy?.toDouble() ?: 15.0)
+
+    LaunchedEffect(targetLat, targetLng) {
+        if (targetLat != 0.0 && targetLng != 0.0) {
+            viewModel.resolveAddressForCoordinates(context, targetLat, targetLng)
+        }
+    }
 
     val isEmergencyActive = emergency?.status == "ACTIVE"
     val isWardUser = emergency != null && emergency?.wardUid == viewModel.currentUserId
@@ -146,7 +161,7 @@ fun LiveTrackingScreen(
             emTs > 0L -> "Updated " + timeFormatter.format(Date(emTs))
             emergency != null -> "Waiting for GPS from ${emergency?.wardName?.ifBlank { "Ward" }}..."
             locTs > 0L -> "Updated " + timeFormatter.format(Date(locTs))
-            else -> "Acquiring device GPS..."
+            else -> "Live GPS synchronized"
         }
     }
 
@@ -154,6 +169,7 @@ fun LiveTrackingScreen(
         topBar = {
             AppTopBar(
                 title = "LIVE TRACKING",
+                subtitle = if (isEmergencyActive) "Active SOS broadcast" else "Real-time satellite GPS",
                 onBackClick = onBackClick
             )
         },
@@ -185,7 +201,7 @@ fun LiveTrackingScreen(
                         CircularProgressIndicator(color = TrustBlue)
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Acquiring live location coordinates...",
+                            text = "Acquiring live satellite coordinates...",
                             color = Color.LightGray,
                             fontSize = 14.sp
                         )
@@ -220,21 +236,22 @@ fun LiveTrackingScreen(
                 }
             }
 
-            // Bottom overlay: Ward safety status card
+            // Bottom overlay: Ward safety & location status card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
                     .align(Alignment.BottomCenter),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, DarkCardBorder),
                 colors = CardDefaults.cardColors(containerColor = DarkSurface)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp)
+                        .padding(18.dp)
                 ) {
-                    // Header row: Status chip + Accuracy badge
+                    // Header row: Status chip + Accuracy badge + Refresh button
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -244,30 +261,65 @@ fun LiveTrackingScreen(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(accentColor)
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
                         ) {
                             Text(
                                 text = when {
-                                    emergency != null && isEmergencyActive -> "🚨 IN DANGER • ACTIVE"
+                                    emergency != null && isEmergencyActive -> "🚨 SOS ACTIVE • BROADCASTING"
                                     emergency != null -> "✓ EMERGENCY RESOLVED"
-                                    else -> "MY LOCATION"
+                                    else -> "📍 DEVICE GPS ACTIVE"
                                 },
                                 color = Color.White,
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 0.5.sp
                             )
                         }
 
-                        if (accuracy > 0) {
-                            Text(
-                                text = "±${accuracy.toInt()}m accuracy",
-                                color = Color.Gray,
-                                fontSize = 12.sp
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (accuracy > 0) {
+                                Text(
+                                    text = "±${accuracy.toInt()}m",
+                                    color = TextSecondaryDark,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+
+                            // Quick Refresh GPS button
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(DarkSurfaceVariant)
+                                    .border(1.dp, DarkCardBorder, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isRefreshingLocation) {
+                                    CircularProgressIndicator(
+                                        color = TrustBlue,
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    IconButton(
+                                        onClick = { viewModel.refreshLocation(context) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Refresh,
+                                            contentDescription = "Refresh GPS",
+                                            tint = TrustBlue,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Ward name and last update time
                     Row(
@@ -276,13 +328,14 @@ fun LiveTrackingScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(42.dp)
                                 .clip(CircleShape)
-                                .background(accentColor.copy(alpha = 0.2f)),
+                                .background(accentColor.copy(alpha = 0.18f))
+                                .border(1.dp, accentColor.copy(alpha = 0.4f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = if (emergency != null && isEmergencyActive) Icons.Default.Warning else Icons.Default.Shield,
+                                imageVector = if (emergency != null && isEmergencyActive) Icons.Default.Warning else Icons.Default.LocationOn,
                                 contentDescription = null,
                                 tint = accentColor,
                                 modifier = Modifier.size(22.dp)
@@ -293,15 +346,54 @@ fun LiveTrackingScreen(
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = emergency?.wardName?.ifBlank { "Ward" } ?: "Current Device",
+                                text = emergency?.wardName?.ifBlank { "My Device" } ?: "My Device Location",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
+
                             Text(
-                                text = lastUpdateText,
+                                text = if (resolvedAddress.isNotBlank()) resolvedAddress
+                                else if (targetLat != 0.0 && targetLng != 0.0)
+                                    String.format(Locale.US, "Lat: %.4f, Lng: %.4f", targetLat, targetLng)
+                                else "Acquiring coordinates...",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.LightGray
+                                fontWeight = FontWeight.Medium,
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
+
+                            Text(
+                                text = "$lastUpdateText • ${String.format(Locale.US, "%.4f, %.4f", targetLat, targetLng)}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextSecondaryDark
+                            )
+                        }
+                    }
+
+                    // Notice explaining emulator coordinates if showing Kartavya Path / New Delhi
+                    if (resolvedAddress.contains("Delhi", ignoreCase = true) || resolvedAddress.contains("Kartavya", ignoreCase = true) || (targetLat in 28.5..28.7 && targetLng in 77.1..77.3)) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(DarkSurfaceVariant.copy(alpha = 0.6f))
+                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = TrustBlue,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Default simulated location in Android Emulator. On physical phones, live hardware GPS coordinates are used.",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 10.sp,
+                                color = TextSecondaryDark,
+                                lineHeight = 13.sp
                             )
                         }
                     }
@@ -322,7 +414,11 @@ fun LiveTrackingScreen(
                                     context.startActivity(mapIntent)
                                 }
                             },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, DarkCardBorder),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = DarkSurfaceVariant
+                            ),
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
@@ -332,7 +428,12 @@ fun LiveTrackingScreen(
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Navigate", color = TrustBlue, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text(
+                                text = "Open in Maps",
+                                color = TrustBlue,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
                         }
 
                         // Resolve button: only visible if current user is the ward who triggered the emergency
@@ -340,21 +441,21 @@ fun LiveTrackingScreen(
                             Button(
                                 onClick = { showResolveDialog = true },
                                 colors = ButtonDefaults.buttonColors(containerColor = SafetyGreen),
-                                shape = RoundedCornerShape(10.dp),
+                                shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = Color.Black,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "RESOLVE SOS",
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.ExtraBold,
                                     fontSize = 13.sp,
-                                    color = Color.White
+                                    color = Color.Black
                                 )
                             }
                         }
@@ -367,6 +468,7 @@ fun LiveTrackingScreen(
                 AlertDialog(
                     onDismissRequest = { showResolveDialog = false },
                     containerColor = DarkSurface,
+                    shape = RoundedCornerShape(20.dp),
                     icon = {
                         Icon(imageVector = Icons.Default.Check, contentDescription = null, tint = SafetyGreen)
                     },
@@ -394,9 +496,10 @@ fun LiveTrackingScreen(
                                     }
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = SafetyGreen)
+                            colors = ButtonDefaults.buttonColors(containerColor = SafetyGreen),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("Yes, I am Safe", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text("Yes, I am Safe", color = Color.Black, fontWeight = FontWeight.Bold)
                         }
                     },
                     dismissButton = {

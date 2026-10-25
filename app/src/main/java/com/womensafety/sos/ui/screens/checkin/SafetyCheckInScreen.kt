@@ -2,7 +2,11 @@ package com.womensafety.sos.ui.screens.checkin
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,12 +24,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -33,6 +40,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -45,6 +53,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -56,10 +66,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.womensafety.sos.ui.components.AppTopBar
 import com.womensafety.sos.ui.screens.home.HomeViewModel
 import com.womensafety.sos.ui.theme.AlertRed
+import com.womensafety.sos.ui.theme.AlertRedGradientEnd
+import com.womensafety.sos.ui.theme.AlertRedGradientStart
 import com.womensafety.sos.ui.theme.DarkBackground
+import com.womensafety.sos.ui.theme.DarkCardBorder
 import com.womensafety.sos.ui.theme.DarkSurface
 import com.womensafety.sos.ui.theme.DarkSurfaceVariant
 import com.womensafety.sos.ui.theme.SafetyGreen
+import com.womensafety.sos.ui.theme.TextSecondaryDark
 import com.womensafety.sos.ui.theme.TrustBlue
 
 @Composable
@@ -86,11 +100,13 @@ fun SafetyCheckInScreen(
     Scaffold(
         topBar = {
             AppTopBar(
-                title = "SAFETY CHECK-IN TIMER",
+                title = "WALKING CHECK-IN",
+                subtitle = if (isTimerRunning) "Live countdown active" else "Auto-SOS safety timer",
                 onBackClick = onBackClick
             )
         },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = DarkBackground
     ) { paddingValues ->
         BoxWithConstraints(
             modifier = Modifier
@@ -105,7 +121,6 @@ fun SafetyCheckInScreen(
             val isLandscape = screenWidth > screenHeight && screenHeight < 600.dp
 
             if (isLandscape) {
-                // Responsive Landscape 2-Column Split
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
@@ -113,7 +128,6 @@ fun SafetyCheckInScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Left Column: Timer Display Card
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -127,7 +141,6 @@ fun SafetyCheckInScreen(
                         )
                     }
 
-                    // Right Column: Controls & Presets
                     Column(
                         modifier = Modifier
                             .weight(1.2f)
@@ -138,11 +151,11 @@ fun SafetyCheckInScreen(
                     ) {
                         Text(
                             text = if (isTimerRunning)
-                                "If you don't disarm before 00:00, SOS triggers automatically."
+                                "Auto-SOS triggers if not disarmed before 00:00."
                             else
-                                "Auto-SOS will trigger if you don't check in before the timer ends.",
+                                "Auto-SOS will trigger if you don't check in before time runs out.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.LightGray,
+                            color = TextSecondaryDark,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(bottom = 10.dp)
                         )
@@ -157,45 +170,50 @@ fun SafetyCheckInScreen(
                                     onTimerTriggeredSos()
                                 }
                             },
-                            onMarkSafe = { viewModel.markAsSafe() }
+                            onMarkSafe = { viewModel.markAsSafe() },
+                            onBackClick = onBackClick
                         )
                     }
                 }
             } else {
-                // Portrait Layout with safe scrolling and keyboard support
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .widthIn(max = 560.dp)
+                        .widthIn(max = 540.dp)
                         .verticalScroll(rememberScrollState())
-                        .padding(20.dp),
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(18.dp)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // Header Subtext
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(top = 4.dp)
+                    ) {
                         Text(
-                            text = "Walking Home Safety Timer",
-                            style = MaterialTheme.typography.headlineSmall,
+                            text = "Walk Safe Countdown",
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "If you don't tap 'I'm Safe' before the timer reaches 00:00, emergency SOS and location broadcast will automatically trigger.",
+                            text = "Set a duration for your walk home. If you don't check in safely before 00:00, the app triggers emergency SOS & broadcasts your GPS to guardians.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray,
-                            textAlign = TextAlign.Center
+                            color = TextSecondaryDark,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 20.sp
                         )
                     }
 
-                    // Timer Display Card
+                    // Main Countdown Card
                     TimerDisplayCard(
                         isTimerRunning = isTimerRunning,
                         formattedTime = formattedTime,
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Controls
+                    // Controls & Presets
                     CheckInControls(
                         isTimerRunning = isTimerRunning,
                         customMinutesInput = customMinutesInput,
@@ -206,10 +224,11 @@ fun SafetyCheckInScreen(
                                 onTimerTriggeredSos()
                             }
                         },
-                        onMarkSafe = { viewModel.markAsSafe() }
+                        onMarkSafe = { viewModel.markAsSafe() },
+                        onBackClick = onBackClick
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -222,37 +241,79 @@ fun TimerDisplayCard(
     formattedTime: String,
     modifier: Modifier = Modifier
 ) {
+    val cardBackground by animateColorAsState(
+        targetValue = if (isTimerRunning) DarkSurfaceVariant else DarkSurface,
+        animationSpec = tween(400),
+        label = "TimerCardBg"
+    )
+
     Card(
-        colors = CardDefaults.cardColors(containerColor = if (isTimerRunning) AlertRed else DarkSurface),
-        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBackground),
+        shape = RoundedCornerShape(22.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (isTimerRunning) AlertRed.copy(alpha = 0.5f) else DarkCardBorder
+        ),
         modifier = modifier
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 24.dp, horizontal = 20.dp),
+                .padding(vertical = 28.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = Icons.Default.Timer,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(48.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isTimerRunning) AlertRed.copy(alpha = 0.15f)
+                        else TrustBlue.copy(alpha = 0.12f)
+                    )
+                    .border(
+                        1.dp,
+                        if (isTimerRunning) AlertRed.copy(alpha = 0.4f) else TrustBlue.copy(alpha = 0.3f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Timer,
+                    contentDescription = null,
+                    tint = if (isTimerRunning) AlertRed else TrustBlue,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
                 text = if (isTimerRunning) formattedTime else "00:00",
                 style = MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.White
+                letterSpacing = 2.sp,
+                color = if (isTimerRunning) AlertRed else Color.White
             )
-            if (isTimerRunning) {
-                Spacer(modifier = Modifier.height(6.dp))
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(if (isTimerRunning) AlertRed else SafetyGreen)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "MONITORING ACTIVE",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontWeight = FontWeight.Bold
+                    text = if (isTimerRunning) "MONITORING ACTIVE • DO NOT CLOSE" else "READY TO START",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isTimerRunning) AlertRed else SafetyGreen,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp
                 )
             }
         }
@@ -265,34 +326,32 @@ fun CheckInControls(
     customMinutesInput: String,
     onCustomMinutesChange: (String) -> Unit,
     onStartTimer: (Int) -> Unit,
-    onMarkSafe: () -> Unit
+    onMarkSafe: () -> Unit,
+    onBackClick: (() -> Unit)? = null
 ) {
     if (!isTimerRunning) {
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
-                text = "Select Walk Duration:",
+                text = "Quick Presets:",
                 color = Color.White,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmall
             )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                TimerPresetButton("5 Min", modifier = Modifier.weight(1f)) {
-                    onStartTimer(5)
-                }
-                TimerPresetButton("15 Min", modifier = Modifier.weight(1f)) {
-                    onStartTimer(15)
-                }
-                TimerPresetButton("30 Min", modifier = Modifier.weight(1f)) {
-                    onStartTimer(30)
-                }
+                TimerPresetButton("5 Min", modifier = Modifier.weight(1f)) { onStartTimer(5) }
+                TimerPresetButton("15 Min", modifier = Modifier.weight(1f)) { onStartTimer(15) }
+                TimerPresetButton("30 Min", modifier = Modifier.weight(1f)) { onStartTimer(30) }
+                TimerPresetButton("60 Min", modifier = Modifier.weight(1f)) { onStartTimer(60) }
             }
 
-            // Custom Minutes Input
+            // Custom Minutes Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -307,14 +366,17 @@ fun CheckInControls(
                         }
                     },
                     label = { Text("Custom Minutes") },
-                    placeholder = { Text("e.g. 10, 45", color = Color.DarkGray) },
+                    placeholder = { Text("e.g. 20", color = Color.Gray) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = TrustBlue,
-                        unfocusedBorderColor = Color.DarkGray,
+                        unfocusedBorderColor = DarkCardBorder,
                         focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        unfocusedTextColor = Color.White,
+                        focusedContainerColor = DarkSurface,
+                        unfocusedContainerColor = DarkSurface
                     ),
                     modifier = Modifier.weight(1f)
                 )
@@ -327,8 +389,11 @@ fun CheckInControls(
                         }
                     },
                     enabled = customMin in 1..180,
-                    colors = ButtonDefaults.buttonColors(containerColor = TrustBlue),
-                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = TrustBlue,
+                        disabledContainerColor = TrustBlue.copy(alpha = 0.4f)
+                    ),
+                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.height(56.dp)
                 ) {
                     Icon(imageVector = Icons.Default.PlayArrow, contentDescription = "Start")
@@ -336,19 +401,92 @@ fun CheckInControls(
                     Text("Start", fontWeight = FontWeight.Bold)
                 }
             }
+
+            // Explicit Back to Home Action Button
+            if (onBackClick != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedButton(
+                    onClick = onBackClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, DarkCardBorder),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = DarkSurfaceVariant,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Back to Safety Dashboard",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp
+                    )
+                }
+            }
         }
     } else {
-        Button(
-            onClick = onMarkSafe,
-            colors = ButtonDefaults.buttonColors(containerColor = SafetyGreen),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(60.dp)
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(text = "I'M SAFE (DISARM TIMER)", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Button(
+                onClick = onMarkSafe,
+                colors = ButtonDefaults.buttonColors(containerColor = SafetyGreen),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = Color.Black,
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "I'M SAFE (DISARM TIMER)",
+                    color = Color.Black,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 0.5.sp
+                )
+            }
+
+            // Explicit Back to Home Action while running
+            if (onBackClick != null) {
+                OutlinedButton(
+                    onClick = onBackClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, DarkCardBorder),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = DarkSurfaceVariant,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Return to Home (Timer Stays Active)",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp
+                    )
+                }
+            }
         }
     }
 }
@@ -362,9 +500,15 @@ fun TimerPresetButton(
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
-        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, DarkCardBorder),
+        shape = RoundedCornerShape(14.dp),
         modifier = modifier.height(50.dp)
     ) {
-        Text(text = label, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        Text(
+            text = label,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp
+        )
     }
 }
