@@ -64,10 +64,13 @@ class FakeCallViewModel : ViewModel(), TextToSpeech.OnInitListener {
 
     private var timerJob: Job? = null
     private var countdownJob: Job? = null
+    private var vibrateJob: Job? = null
     private var ringtone: Ringtone? = null
     private var toneGenerator: ToneGenerator? = null
     private var tts: TextToSpeech? = null
     private var isTtsReady = false
+    private var activeVibrator: Vibrator? = null
+    private var appContext: Context? = null
 
     fun initTts(context: Context) {
         if (tts == null) {
@@ -115,26 +118,47 @@ class FakeCallViewModel : ViewModel(), TextToSpeech.OnInitListener {
         _scheduledCountdown.value = 0
     }
 
+    private fun getVibrator(context: Context): Vibrator? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            vm?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
+    }
+
     fun startRinging(context: Context) {
         stopRinging()
+        appContext = context.applicationContext
         try {
             val ringUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
             ringtone = RingtoneManager.getRingtone(context.applicationContext, ringUri)
             ringtone?.play()
 
-            // Vibrate
-            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-                vm?.defaultVibrator
-            } else {
-                @Suppress("DEPRECATION")
-                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 1000, 1000), 0))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator?.vibrate(longArrayOf(0, 1000, 1000), 0)
+            activeVibrator = getVibrator(context.applicationContext)
+
+            // Pulse finite 1-second vibration in a coroutine loop.
+            // Using a finite one-shot pulse guarantees that if the app is killed or
+            // the user picks up/declines, the vibration physically terminates and
+            // never repeats indefinitely on the Android system service.
+            vibrateJob?.cancel()
+            vibrateJob = viewModelScope.launch {
+                while (_stage.value == FakeCallStage.INCOMING) {
+                    try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            activeVibrator?.vibrate(
+                                VibrationEffect.createOneShot(1000L, VibrationEffect.DEFAULT_AMPLITUDE)
+                            )
+                        } else {
+                            @Suppress("DEPRECATION")
+                            activeVibrator?.vibrate(1000L)
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Vibrate pulse error: ${e.message}")
+                    }
+                    delay(2000L) // 1s vibrate + 1s pause
+                }
             }
         } catch (e: Exception) {
             Log.w(TAG, "Ringtone/vibrate error: ${e.message}")
@@ -148,6 +172,27 @@ class FakeCallViewModel : ViewModel(), TextToSpeech.OnInitListener {
         } catch (e: Exception) {
             // ignore
         }
+
+        // Cancel pulse coroutine
+        vibrateJob?.cancel()
+        vibrateJob = null
+
+        // Explicitly cancel active vibrator
+        try {
+            activeVibrator?.cancel()
+        } catch (e: Exception) {
+            Log.w(TAG, "Error cancelling active vibrator: ${e.message}")
+        }
+
+        // Secondary fallback: cancel directly on system service via context
+        appContext?.let { ctx ->
+            try {
+                getVibrator(ctx)?.cancel()
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+        activeVibrator = null
     }
 
     fun answerCall(context: Context) {

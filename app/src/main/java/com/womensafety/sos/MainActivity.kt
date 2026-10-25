@@ -39,4 +39,28 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onStop() {
+        super.onStop()
+        cancelNonEmergencyVibration()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        cancelNonEmergencyVibration()
+    }
+
+    private fun cancelNonEmergencyVibration() {
+        try {
+            if (!com.womensafety.sos.service.EmergencyForegroundService.isServiceRunning.value) {
+                val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    (getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager)?.defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                }
+                vibrator?.cancel()
+            }
+        } catch (_: Exception) {}
+    }
 }
