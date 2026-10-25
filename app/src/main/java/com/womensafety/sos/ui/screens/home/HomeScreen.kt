@@ -10,17 +10,16 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -189,8 +188,9 @@ fun HomeScreen(
             val screenHeight = maxHeight
             val win = rememberWindowInfo()
 
-            if (win.useTwoPane) {
-                // Responsive Two-Column Layout for Landscape / Tablets
+            // Two-pane (SOS left, tiles right) on landscape AND on any wide content area
+            // (tablet portrait). Phones in portrait use the single-column layout below.
+            if (win.useTwoPane || screenWidth >= 600.dp) {
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
@@ -260,52 +260,41 @@ fun HomeScreen(
                     }
                 }
             } else {
-                // Portrait Layout:
-                // 1. SOS button perfectly in the center of the screen
-                // 2. 4 main button cluster at the bottom above the nav bar
-                val portraitButtonSize = minOf(screenWidth * 0.58f, screenHeight * 0.30f).coerceIn(170.dp, 230.dp)
-
+                // Portrait phone layout: huge SOS centered in the free space,
+                // banner (when active) + 2x2 grid pinned below.
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Top: Active Alert Banner
-                    AnimatedVisibility(visible = isSosActive) {
-                        AlertBannerCard(
-                            onNavigateToMap = onNavigateToMap,
-                            emergencyId = emergencyId,
-                            onStopSos = {
-                                viewModel.cancelSos(context)
-                                emergencyViewModel.stopEmergency(context)
-                            }
-                        )
-                    }
-
-                    // Center: SOS Button vertically & horizontally centered
-                    Box(
+                    // SOS area: takes whatever height is left after the bottom cluster
+                    BoxWithConstraints(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth(),
                         contentAlignment = Alignment.Center
                     ) {
+                        val hintBlock = 72.dp // spacer + two lines of hint text
+                        val sosSize = minOf(maxWidth * 0.72f, maxHeight - hintBlock)
+                            .coerceIn(140.dp, 320.dp)
+
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
                             SosButton(
-                                size = portraitButtonSize,
+                                size = sosSize,
                                 isActive = isSosActive,
                                 onSosTriggered = {
-                                viewModel.triggerSos(context)
-                                emergencyViewModel.startEmergency(context)
-                            },
-                            onSosCancelled = {
-                                viewModel.cancelSos(context)
-                                emergencyViewModel.stopEmergency(context)
-                            }
-                        )
+                                    viewModel.triggerSos(context)
+                                    emergencyViewModel.startEmergency(context)
+                                },
+                                onSosCancelled = {
+                                    viewModel.cancelSos(context)
+                                    emergencyViewModel.stopEmergency(context)
+                                }
+                            )
 
                             Spacer(modifier = Modifier.height(14.dp))
 
@@ -319,13 +308,24 @@ fun HomeScreen(
                         }
                     }
 
-                    // Bottom: 4 Main Button Cluster above the bottom nav bar
-                    Box(
+                    // Bottom cluster: banner above the 2x2 grid
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .widthIn(max = 540.dp)
                             .padding(bottom = 6.dp)
                     ) {
+                        AnimatedVisibility(visible = isSosActive) {
+                            AlertBannerCard(
+                                onNavigateToMap = onNavigateToMap,
+                                emergencyId = emergencyId,
+                                onStopSos = {
+                                    viewModel.cancelSos(context)
+                                    emergencyViewModel.stopEmergency(context)
+                                }
+                            )
+                        }
+
                         QuickActionGrid(
                             onEmergencyPanelClick = { viewModel.setShowCallPanel(true) },
                             onNavigateToMap = onNavigateToMap,
@@ -486,7 +486,7 @@ fun QuickActionGrid(
                 icon = Icons.Default.Call,
                 label = "Emergency\nPanel",
                 color = SafetyGreen,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f), // horizontal split only
                 onClick = onEmergencyPanelClick
             )
 
@@ -533,13 +533,13 @@ fun QuickActionButton(
     Card(
         colors = CardDefaults.cardColors(containerColor = color),
         shape = RoundedCornerShape(14.dp),
-        modifier = modifier
-            .defaultMinSize(minHeight = 70.dp),
+        modifier = modifier,
         onClick = onClick
     ) {
         Row(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()          // width only. NEVER fillMaxSize: it stretched the tiles
+                .heightIn(min = 72.dp)   // minimum height, otherwise wraps content
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start

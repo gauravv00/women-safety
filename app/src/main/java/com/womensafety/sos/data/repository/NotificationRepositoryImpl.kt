@@ -175,7 +175,9 @@ class NotificationRepositoryImpl(
     override suspend fun sendPairRequest(wardPairingCode: String, guardianName: String): Result<String> {
         return try {
             val guardianUid = authManager.ensureAuthenticated()
-            if (guardianUid.isBlank()) return Result.failure(Exception("Not authenticated"))
+            if (guardianUid.isBlank()) return Result.failure(
+                Exception("Could not connect to the server. Please check your internet connection and try again.")
+            )
 
             // 1. Look up ward by pairingCode field in users collection
             val wardQuery = firestore.collection("users")

@@ -66,6 +66,7 @@ fun OsmMap(
     var lastAnimatedPoint by remember { mutableStateOf<GeoPoint?>(null) }
     // Track whether overlays have been added to the map
     var overlaysAttached by remember { mutableStateOf(false) }
+    var isDetached by remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycleOwner) {
         val obs = LifecycleEventObserver { _, e ->
@@ -77,6 +78,7 @@ fun OsmMap(
         }
         lifecycleOwner.lifecycle.addObserver(obs)
         onDispose {
+            isDetached = true
             lifecycleOwner.lifecycle.removeObserver(obs)
             mapView.onDetach()
         }
@@ -86,42 +88,47 @@ fun OsmMap(
         modifier = modifier,
         factory = { mapView },
         update = { map ->
-            // One-time: attach persistent overlays
-            if (!overlaysAttached) {
-                map.overlays.add(polyline)
-                map.overlays.add(accuracyCircle)
-                map.overlays.add(marker)
-                overlaysAttached = true
+            if (isDetached) return@AndroidView
+            try {
+                // One-time: attach persistent overlays
+                if (!overlaysAttached) {
+                    map.overlays.add(polyline)
+                    map.overlays.add(accuracyCircle)
+                    map.overlays.add(marker)
+                    overlaysAttached = true
+                }
+
+                // Update polyline path (only mutate data, don't recreate overlay)
+                if (path.size >= 2) {
+                    polyline.setPoints(path)
+                    polyline.outlinePaint.color = pathColor.toArgb()
+                    polyline.outlinePaint.strokeWidth = 10f
+                    polyline.isVisible = true
+                } else {
+                    polyline.isVisible = false
+                }
+
+                // Update accuracy circle
+                accuracyCircle.points = Polygon.pointsAsCircle(current, accuracyMeters.coerceAtLeast(15.0))
+                accuracyCircle.fillPaint.color = accentColor.copy(alpha = 0.25f).toArgb()
+                accuracyCircle.outlinePaint.color = accentColor.toArgb()
+                accuracyCircle.outlinePaint.strokeWidth = 3f
+
+                // Update marker position
+                marker.position = current
+                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+
+                // Only animate camera if moved more than MIN_MOVE_METERS
+                val last = lastAnimatedPoint
+                if (last == null || last.distanceToAsDouble(current) >= MIN_MOVE_METERS) {
+                    map.controller.animateTo(current)
+                    lastAnimatedPoint = current
+                }
+
+                map.invalidate()
+            } catch (e: Exception) {
+                // Ignore any overlay mutations if the map is detaching during back navigation
             }
-
-            // Update polyline path (only mutate data, don't recreate overlay)
-            if (path.size >= 2) {
-                polyline.setPoints(path)
-                polyline.outlinePaint.color = pathColor.toArgb()
-                polyline.outlinePaint.strokeWidth = 10f
-                polyline.isVisible = true
-            } else {
-                polyline.isVisible = false
-            }
-
-            // Update accuracy circle
-            accuracyCircle.points = Polygon.pointsAsCircle(current, accuracyMeters.coerceAtLeast(15.0))
-            accuracyCircle.fillPaint.color = accentColor.copy(alpha = 0.25f).toArgb()
-            accuracyCircle.outlinePaint.color = accentColor.toArgb()
-            accuracyCircle.outlinePaint.strokeWidth = 3f
-
-            // Update marker position
-            marker.position = current
-            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-
-            // Only animate camera if moved more than MIN_MOVE_METERS
-            val last = lastAnimatedPoint
-            if (last == null || last.distanceToAsDouble(current) >= MIN_MOVE_METERS) {
-                map.controller.animateTo(current)
-                lastAnimatedPoint = current
-            }
-
-            map.invalidate()
         }
     )
 }
