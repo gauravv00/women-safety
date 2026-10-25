@@ -102,6 +102,22 @@ class EmergencySosService : Service() {
     private fun startLocationUpdates() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
             != PackageManager.PERMISSION_GRANTED) return
+
+        // Immediately push cached last location so the emergency document is updated without delay
+        fusedLocationClient.lastLocation.addOnSuccessListener { loc ->
+            if (loc != null && emergencyId.isNotBlank()) {
+                scope.launch {
+                    try {
+                        ServiceLocator.emergencyRepository.updateLocation(
+                            emergencyId, loc.latitude, loc.longitude, loc.accuracy
+                        )
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Initial location update failed", e)
+                    }
+                }
+            }
+        }
+
         val req = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L)
             .setMinUpdateIntervalMillis(3000L)
             .build()

@@ -62,14 +62,14 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.womensafety.sos.ui.components.AppTopBar
-import com.womensafety.sos.ui.components.OsmMap
+import com.womensafety.sos.ui.components.SafetyMap
 import com.womensafety.sos.ui.theme.AlertRed
 import com.womensafety.sos.ui.theme.DarkBackground
 import com.womensafety.sos.ui.theme.DarkSurface
 import com.womensafety.sos.ui.theme.DarkSurfaceVariant
 import com.womensafety.sos.ui.theme.SafetyGreen
 import com.womensafety.sos.ui.theme.TrustBlue
-import org.osmdroid.util.GeoPoint
+import com.google.android.gms.maps.model.LatLng
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -139,9 +139,15 @@ fun LiveTrackingScreen(
     }
 
     val timeFormatter = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
-    val lastUpdateText = remember(emergency?.lastLocationTs) {
-        val ts = emergency?.lastLocationTs ?: 0L
-        if (ts > 0) "Updated " + timeFormatter.format(Date(ts)) else "Waiting for GPS..."
+    val lastUpdateText = remember(emergency?.lastLocationTs, currentLocation?.time) {
+        val emTs = emergency?.lastLocationTs ?: 0L
+        val locTs = currentLocation?.time ?: 0L
+        when {
+            emTs > 0L -> "Updated " + timeFormatter.format(Date(emTs))
+            emergency != null -> "Waiting for GPS from ${emergency?.wardName?.ifBlank { "Ward" }}..."
+            locTs > 0L -> "Updated " + timeFormatter.format(Date(locTs))
+            else -> "Acquiring device GPS..."
+        }
     }
 
     Scaffold(
@@ -158,10 +164,10 @@ fun LiveTrackingScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // OSM Map Component
+            // Google Maps Component
             if (targetLat != 0.0 && targetLng != 0.0) {
-                OsmMap(
-                    current = GeoPoint(targetLat, targetLng),
+                SafetyMap(
+                    current = LatLng(targetLat, targetLng),
                     accuracyMeters = accuracy,
                     path = emptyList(),
                     accentColor = accentColor,
