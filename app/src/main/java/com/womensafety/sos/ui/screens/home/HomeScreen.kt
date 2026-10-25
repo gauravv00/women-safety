@@ -65,9 +65,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.womensafety.sos.ui.adaptive.rememberWindowInfo
 import com.womensafety.sos.ui.components.AppTopBar
 import com.womensafety.sos.ui.components.EmergencyCallPanel
 import com.womensafety.sos.ui.components.SosButton
+import com.womensafety.sos.ui.screens.notifications.NotificationSideBar
 import com.womensafety.sos.ui.screens.notifications.NotificationViewModel
 import com.womensafety.sos.ui.theme.AlertRed
 import com.womensafety.sos.ui.theme.AlertRedGradientEnd
@@ -85,6 +87,7 @@ fun HomeScreen(
     onNavigateToFakeCall: () -> Unit,
     onNavigateToCheckIn: () -> Unit,
     onNavigateToNotifications: () -> Unit,
+    onNavigateToTracking: (String) -> Unit = {},
     viewModel: HomeViewModel = viewModel(),
     notificationViewModel: NotificationViewModel = viewModel(),
     emergencyViewModel: EmergencyViewModel = viewModel()
@@ -101,6 +104,7 @@ fun HomeScreen(
     val isSosActive = activeIncident != null || isServiceRunning || isEmergencyActive
 
     var showNotifRationaleDialog by remember { mutableStateOf(false) }
+    var isNotificationSideBarOpen by remember { mutableStateOf(false) }
 
     val singleNotifPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -160,7 +164,7 @@ fun HomeScreen(
             AppTopBar(
                 isSosActive = isSosActive,
                 unreadNotificationCount = unreadNotifCount,
-                onNotificationClick = onNavigateToNotifications
+                onNotificationClick = { isNotificationSideBarOpen = true }
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
@@ -183,9 +187,9 @@ fun HomeScreen(
         ) {
             val screenWidth = maxWidth
             val screenHeight = maxHeight
-            val isLandscapeOrWide = screenWidth > screenHeight || screenWidth >= 600.dp
+            val win = rememberWindowInfo()
 
-            if (isLandscapeOrWide) {
+            if (win.useTwoPane) {
                 // Responsive Two-Column Layout for Landscape / Tablets
                 Row(
                     modifier = Modifier
@@ -194,7 +198,7 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(24.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Left Column: SOS Button & Instructions
+                    // Left Column: SOS Button centered
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -256,54 +260,44 @@ fun HomeScreen(
                     }
                 }
             } else {
-                // Portrait Layout with safe scrolling and adaptive button size
-                val portraitButtonSize = minOf(screenWidth * 0.62f, screenHeight * 0.36f).coerceIn(180.dp, 250.dp)
+                // Portrait Layout:
+                // 1. SOS button perfectly in the center of the screen
+                // 2. 4 main button cluster at the bottom above the nav bar
+                val portraitButtonSize = minOf(screenWidth * 0.58f, screenHeight * 0.30f).coerceIn(170.dp, 230.dp)
 
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.widthIn(max = 540.dp)
-                    ) {
-                        // Active Alert Banner
-                        AnimatedVisibility(visible = isSosActive) {
-                            AlertBannerCard(
-                                onNavigateToMap = onNavigateToMap,
-                                emergencyId = emergencyId,
-                                onStopSos = {
-                                    viewModel.cancelSos(context)
-                                    emergencyViewModel.stopEmergency(context)
-                                }
-                            )
-                        }
-
-                        if (!isSosActive) {
-                            Text(
-                                text = "Press and hold SOS for 2 seconds to trigger emergency broadcast",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color.Gray,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
-                            )
-                        }
+                    // Top: Active Alert Banner
+                    AnimatedVisibility(visible = isSosActive) {
+                        AlertBannerCard(
+                            onNavigateToMap = onNavigateToMap,
+                            emergencyId = emergencyId,
+                            onStopSos = {
+                                viewModel.cancelSos(context)
+                                emergencyViewModel.stopEmergency(context)
+                            }
+                        )
                     }
 
-                    // CENTER SOS BUTTON with dynamic sizing
+                    // Center: SOS Button vertically & horizontally centered
                     Box(
                         modifier = Modifier
-                            .padding(vertical = 12.dp),
+                            .weight(1f)
+                            .fillMaxWidth(),
                         contentAlignment = Alignment.Center
                     ) {
-                        SosButton(
-                            size = portraitButtonSize,
-                            isActive = isSosActive,
-                            onSosTriggered = {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            SosButton(
+                                size = portraitButtonSize,
+                                isActive = isSosActive,
+                                onSosTriggered = {
                                 viewModel.triggerSos(context)
                                 emergencyViewModel.startEmergency(context)
                             },
@@ -312,13 +306,25 @@ fun HomeScreen(
                                 emergencyViewModel.stopEmergency(context)
                             }
                         )
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            Text(
+                                text = if (isSosActive) "Hold 2s to cancel emergency broadcast" else "Hold SOS 2s to broadcast emergency",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (isSosActive) Color.White.copy(alpha = 0.9f) else Color.Gray,
+                                fontWeight = FontWeight.Medium,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
 
-                    // Quick Action Cards
+                    // Bottom: 4 Main Button Cluster above the bottom nav bar
                     Box(
                         modifier = Modifier
+                            .fillMaxWidth()
                             .widthIn(max = 540.dp)
-                            .padding(top = 10.dp)
+                            .padding(bottom = 6.dp)
                     ) {
                         QuickActionGrid(
                             onEmergencyPanelClick = { viewModel.setShowCallPanel(true) },
@@ -377,6 +383,20 @@ fun HomeScreen(
                     }
                 )
             }
+
+            // Notification Side Bar Panel
+            NotificationSideBar(
+                isOpen = isNotificationSideBarOpen,
+                onDismiss = { isNotificationSideBarOpen = false },
+                onNavigateToTracking = { trackId ->
+                    if (trackId.isNotBlank()) {
+                        onNavigateToTracking(trackId)
+                    } else {
+                        onNavigateToMap()
+                    }
+                },
+                viewModel = notificationViewModel
+            )
         }
     }
 }
@@ -393,7 +413,7 @@ fun AlertBannerCard(
         shape = RoundedCornerShape(16.dp),
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 12.dp)
+            .padding(bottom = 10.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(
@@ -456,11 +476,11 @@ fun QuickActionGrid(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             QuickActionButton(
                 icon = Icons.Default.Call,
@@ -481,7 +501,7 @@ fun QuickActionGrid(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             QuickActionButton(
                 icon = Icons.AutoMirrored.Filled.PhoneCallback,
@@ -512,15 +532,15 @@ fun QuickActionButton(
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = color),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         modifier = modifier
-            .defaultMinSize(minHeight = 76.dp),
+            .defaultMinSize(minHeight = 70.dp),
         onClick = onClick
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start
         ) {
@@ -528,7 +548,7 @@ fun QuickActionButton(
                 imageVector = icon,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.size(26.dp)
+                modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(

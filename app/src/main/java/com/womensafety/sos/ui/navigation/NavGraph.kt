@@ -1,6 +1,6 @@
 package com.womensafety.sos.ui.navigation
 
-import android.content.res.Configuration
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
@@ -27,12 +28,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.womensafety.sos.ui.adaptive.WindowInfo
+import com.womensafety.sos.ui.adaptive.rememberWindowInfo
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -77,10 +82,8 @@ fun MainNavGraph(
     // Hide navigation chrome on Full-screen overlay modes (like Fake Call)
     val showNav = currentRoute != Screen.FakeCall.route
 
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val isWideScreen = configuration.screenWidthDp >= 600
-    val useNavRail = (isWideScreen || isLandscape) && showNav
+    // Window width < 600dp -> BottomBar (all phones in portrait). Width >= 600dp -> NavigationRail.
+    val win = rememberWindowInfo()
 
     fun onNavigateToItem(route: String) {
         if (currentRoute != route) {
@@ -94,31 +97,29 @@ fun MainNavGraph(
         }
     }
 
-    if (useNavRail) {
-        // Material 3 Responsive Navigation Rail for Tablets and Landscape Phones
-        Row(modifier = Modifier.fillMaxSize()) {
-            NavigationRail(
-                containerColor = DarkSurface,
-                contentColor = Color.White,
-                modifier = Modifier.fillMaxHeight()
-            ) {
-                Spacer(modifier = Modifier.height(12.dp))
-                bottomNavItems.forEach { item ->
-                    val isSelected = currentRoute == item.route
-                    NavigationRailItem(
-                        icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
-                        label = { Text(text = item.title, fontSize = 11.sp) },
-                        selected = isSelected,
-                        colors = NavigationRailItemDefaults.colors(
-                            selectedIconColor = AlertRed,
-                            selectedTextColor = AlertRed,
-                            unselectedIconColor = Color.Gray,
-                            unselectedTextColor = Color.Gray,
-                            indicatorColor = Color.Transparent
-                        ),
-                        onClick = { onNavigateToItem(item.route) }
-                    )
-                }
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        bottomBar = {
+            if (win.useBottomBar && showNav) {
+                AppBottomBar(
+                    items = bottomNavItems,
+                    currentRoute = currentRoute,
+                    onNavigate = ::onNavigateToItem
+                )
+            }
+        }
+    ) { paddingValues ->
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            if (win.useRail && showNav) {
+                AppRail(
+                    items = bottomNavItems,
+                    currentRoute = currentRoute,
+                    onNavigate = ::onNavigateToItem
+                )
             }
 
             Box(
@@ -129,42 +130,167 @@ fun MainNavGraph(
                 NavHostContainer(navController = navController)
             }
         }
-    } else {
-        // Standard Portrait Mobile Navigation Bar
-        Scaffold(
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            bottomBar = {
-                if (showNav) {
-                    NavigationBar(
-                        containerColor = DarkSurface,
-                        windowInsets = NavigationBarDefaults.windowInsets
-                    ) {
-                        bottomNavItems.forEach { item ->
-                            val isSelected = currentRoute == item.route
-                            NavigationBarItem(
-                                icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
-                                label = { Text(text = item.title) },
-                                selected = isSelected,
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = AlertRed,
-                                    selectedTextColor = AlertRed,
-                                    unselectedIconColor = Color.Gray,
-                                    unselectedTextColor = Color.Gray,
-                                    indicatorColor = Color.Transparent
-                                ),
-                                onClick = { onNavigateToItem(item.route) }
-                            )
-                        }
-                    }
-                }
+    }
+}
+
+@Composable
+fun AppBottomBar(
+    items: List<BottomNavItem>,
+    currentRoute: String?,
+    onNavigate: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    NavigationBar(
+        modifier = modifier.height(64.dp),
+        containerColor = DarkSurface,
+        windowInsets = NavigationBarDefaults.windowInsets
+    ) {
+        items.forEach { item ->
+            val isSelected = currentRoute == item.route
+            NavigationBarItem(
+                icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
+                label = {
+                    Text(
+                        text = item.title,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                selected = isSelected,
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = AlertRed,
+                    selectedTextColor = AlertRed,
+                    unselectedIconColor = Color.Gray,
+                    unselectedTextColor = Color.Gray,
+                    indicatorColor = Color.Transparent
+                ),
+                onClick = { onNavigate(item.route) }
+            )
+        }
+    }
+}
+
+@Composable
+fun AppRail(
+    items: List<BottomNavItem>,
+    currentRoute: String?,
+    onNavigate: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    NavigationRail(
+        containerColor = DarkSurface,
+        contentColor = Color.White,
+        modifier = modifier.fillMaxHeight()
+    ) {
+        Spacer(modifier = Modifier.height(12.dp))
+        items.forEach { item ->
+            val isSelected = currentRoute == item.route
+            NavigationRailItem(
+                icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
+                label = {
+                    Text(
+                        text = item.title,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                selected = isSelected,
+                colors = NavigationRailItemDefaults.colors(
+                    selectedIconColor = AlertRed,
+                    selectedTextColor = AlertRed,
+                    unselectedIconColor = Color.Gray,
+                    unselectedTextColor = Color.Gray,
+                    indicatorColor = Color.Transparent
+                ),
+                onClick = { onNavigate(item.route) }
+            )
+        }
+    }
+}
+
+@Preview(name = "1. Phone Portrait 360x800", widthDp = 360, heightDp = 800)
+@Composable
+private fun PreviewPhonePortrait360x800() {
+    NavPreviewWrapper()
+}
+
+@Preview(name = "2. Small Phone Portrait 320x568", widthDp = 320, heightDp = 568)
+@Composable
+private fun PreviewSmallPhonePortrait320x568() {
+    NavPreviewWrapper()
+}
+
+@Preview(name = "3. Large Phone 412x915 Font 1.3", widthDp = 412, heightDp = 915, fontScale = 1.3f)
+@Composable
+private fun PreviewLargePhonePortrait412x915() {
+    NavPreviewWrapper()
+}
+
+@Preview(name = "4. Phone Display Large 320x640", widthDp = 320, heightDp = 640)
+@Composable
+private fun PreviewPhoneDisplayLarge() {
+    NavPreviewWrapper()
+}
+
+@Preview(name = "5. Phone Landscape 800x360", widthDp = 800, heightDp = 360)
+@Composable
+private fun PreviewPhoneLandscape800x360() {
+    NavPreviewWrapper()
+}
+
+@Preview(name = "6. Tablet Portrait 800x1280", widthDp = 800, heightDp = 1280)
+@Composable
+private fun PreviewTabletPortrait800x1280() {
+    NavPreviewWrapper()
+}
+
+@Composable
+private fun NavPreviewWrapper() {
+    val win = rememberWindowInfo()
+    val bottomNavItems = listOf(
+        BottomNavItem(Screen.Home.route, "SOS", Icons.Default.Shield),
+        BottomNavItem(Screen.Contacts.route, "Contacts", Icons.Default.People),
+        BottomNavItem(Screen.Map.route, "Tracking", Icons.Default.LocationOn),
+        BottomNavItem(Screen.Logs.route, "History", Icons.Default.History),
+        BottomNavItem(Screen.Settings.route, "Settings", Icons.Default.Settings)
+    )
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        bottomBar = {
+            if (win.useBottomBar) {
+                AppBottomBar(
+                    items = bottomNavItems,
+                    currentRoute = Screen.Home.route,
+                    onNavigate = {}
+                )
             }
-        ) { paddingValues ->
+        }
+    ) { padding ->
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            if (win.useRail) {
+                AppRail(
+                    items = bottomNavItems,
+                    currentRoute = Screen.Home.route,
+                    onNavigate = {}
+                )
+            }
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .background(Color(0xFF121212)),
+                contentAlignment = Alignment.Center
             ) {
-                NavHostContainer(navController = navController)
+                Text(
+                    text = if (win.useBottomBar) "Phone mode: BottomBar" else "Wide mode: Rail",
+                    color = Color.White
+                )
             }
         }
     }
@@ -185,7 +311,14 @@ fun NavHostContainer(
                 onNavigateToMap = { navController.navigate(Screen.Map.route) },
                 onNavigateToFakeCall = { navController.navigate(Screen.FakeCall.route) },
                 onNavigateToCheckIn = { navController.navigate(Screen.CheckIn.route) },
-                onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) }
+                onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) },
+                onNavigateToTracking = { emergencyId ->
+                    if (emergencyId.isNotBlank()) {
+                        navController.navigate(Screen.Map.createRoute(emergencyId))
+                    } else {
+                        navController.navigate(Screen.Map.route)
+                    }
+                }
             )
         }
 

@@ -219,12 +219,12 @@ fun DismissibleNotificationCard(
             }
         }
     ) {
-        NotificationCardContent(
+        SmallNotificationCard(
             item = item,
-            onClick = onClick,
-            onAccept = onAccept,
-            onReject = onReject,
-            onTrackLive = onTrackLive
+            onCheckLocation = onTrackLive,
+            onAcceptPair = onAccept,
+            onRejectPair = onReject,
+            onClickCard = onClick
         )
     }
 }
