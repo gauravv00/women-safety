@@ -92,8 +92,8 @@ private const val DARK_MAP_STYLE_JSON = """
 """
 
 /**
- * Dedicated Google Maps component for real-time SOS tracking with high-contrast dark theme,
- * accuracy radius visualization, and seamless OpenStreetMap fallback when an API key is missing.
+ * High-reliability live tracking map with instant fallback to OpenStreetMap when
+ * a Google Maps API key is not configured, ensuring working map tiles out of the box.
  */
 @Composable
 fun SafetyMap(
@@ -107,7 +107,8 @@ fun SafetyMap(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val hasValidGoogleMapsKey = BuildConfig.MAPS_API_KEY.isNotBlank() &&
-            !BuildConfig.MAPS_API_KEY.contains("Dummy")
+            !BuildConfig.MAPS_API_KEY.contains("Dummy") &&
+            BuildConfig.MAPS_API_KEY.length > 20
 
     // Initialize MapsInitializer early to prevent CameraUpdateFactory NullPointerException
     LaunchedEffect(Unit) {
@@ -116,7 +117,7 @@ fun SafetyMap(
         } catch (_: Exception) {}
     }
 
-    // Default to Google Maps if API key is present; otherwise default to OpenStreetMap so tiles actually render!
+    // Instant fallback: Default immediately to OpenStreetMap if no valid Google Maps API key is present
     var useGoogleMaps by remember { mutableStateOf(hasValidGoogleMapsKey) }
     var recenterTrigger by remember { mutableIntStateOf(0) }
 
@@ -204,7 +205,7 @@ fun SafetyMap(
                 }
             }
 
-            // If user opened Google Maps without an API key, explain why tiles are beige and provide 1-tap switch
+            // If user manually switched to Google Maps without a key, show explanation card
             if (!hasValidGoogleMapsKey) {
                 Surface(
                     color = DarkSurface.copy(alpha = 0.94f),
@@ -218,11 +219,11 @@ fun SafetyMap(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Google Maps API Key Missing", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("Google Maps API Key Required", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "Google rejected tile download (Authorization failure). Add MAPS_API_KEY to local.properties, or switch to OpenStreetMap for instant tiles.",
+                            "Google rejected tile download (Authorization failure). Add MAPS_API_KEY to local.properties, or switch back to OpenStreetMap for free tiles.",
                             color = Color.LightGray,
                             fontSize = 11.sp
                         )
@@ -234,13 +235,13 @@ fun SafetyMap(
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                             modifier = Modifier.height(30.dp)
                         ) {
-                            Text("Switch to OpenStreetMap (Instant Tiles)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Switch to OpenStreetMap (Free Tiles)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
         } else {
-            // High-reliability OpenStreetMap fallback (renders instantly without an API key)
+            // Instant 100% free fallback: OpenStreetMap (no key needed, renders tiles immediately)
             val osmCurrent = remember(current) { GeoPoint(current.latitude, current.longitude) }
             val osmPath = remember(path) { path.map { GeoPoint(it.latitude, it.longitude) } }
 
@@ -255,7 +256,7 @@ fun SafetyMap(
             )
         }
 
-        // Map provider toggle / indicator badge (Google Maps vs OpenStreetMap)
+        // Map provider indicator badge
         Row(
             modifier = Modifier
                 .align(Alignment.TopEnd)
