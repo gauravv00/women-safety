@@ -1,25 +1,38 @@
 package com.womensafety.sos.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -32,8 +45,13 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
+import com.womensafety.sos.BuildConfig
+import com.womensafety.sos.ui.theme.DarkCardBorder
 import com.womensafety.sos.ui.theme.DarkSurface
+import com.womensafety.sos.ui.theme.DarkSurfaceVariant
+import com.womensafety.sos.ui.theme.TrustBlue
 import kotlinx.coroutines.launch
+import org.osmdroid.util.GeoPoint
 
 // High-contrast brutalist dark map styling matching the app's #0A0A0A aesthetic
 private const val DARK_MAP_STYLE_JSON = """
@@ -71,14 +89,25 @@ fun SafetyMap(
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val hasGoogleMapsKey = BuildConfig.MAPS_API_KEY.isNotBlank()
+    
+    // Default to Google Maps if API key is provided; otherwise fallback smoothly to OpenStreetMap
+    var useGoogleMaps by remember { mutableStateOf(hasGoogleMapsKey) }
+    var recenterTrigger by remember { mutableIntStateOf(0) }
+
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(current, 16.5f)
     }
 
     val mapProperties = remember {
+        val styleOptions = try {
+            MapStyleOptions(DARK_MAP_STYLE_JSON)
+        } catch (e: Exception) {
+            null
+        }
         MapProperties(
             isMyLocationEnabled = false,
-            mapStyleOptions = MapStyleOptions(DARK_MAP_STYLE_JSON)
+            mapStyleOptions = styleOptions
         )
     }
 
@@ -113,46 +142,97 @@ fun SafetyMap(
     }
 
     Box(modifier = modifier) {
-        GoogleMap(
-            modifier = Modifier.fillMaxSize(),
-            cameraPositionState = cameraPositionState,
-            properties = mapProperties,
-            uiSettings = uiSettings
-        ) {
-            // Live location marker
-            Marker(
-                state = markerState,
-                title = "Live SOS Location",
-                snippet = "Accuracy: ±${accuracyMeters.toInt()}m"
-            )
-
-            // Accuracy Radius Circle
-            Circle(
-                center = current,
-                radius = accuracyMeters.coerceAtLeast(15.0),
-                fillColor = accentColor.copy(alpha = 0.22f),
-                strokeColor = accentColor,
-                strokeWidth = 3f
-            )
-
-            // Path Polyline (if breadcrumbs available)
-            if (path.size >= 2) {
-                Polyline(
-                    points = path,
-                    color = pathColor,
-                    width = 8f
+        if (useGoogleMaps) {
+            GoogleMap(
+                modifier = Modifier.fillMaxSize(),
+                cameraPositionState = cameraPositionState,
+                properties = mapProperties,
+                uiSettings = uiSettings
+            ) {
+                // Live location marker
+                Marker(
+                    state = markerState,
+                    title = "Live SOS Location",
+                    snippet = "Accuracy: ±${accuracyMeters.toInt()}m"
                 )
+
+                // Accuracy Radius Circle
+                Circle(
+                    center = current,
+                    radius = accuracyMeters.coerceAtLeast(15.0),
+                    fillColor = accentColor.copy(alpha = 0.22f),
+                    strokeColor = accentColor,
+                    strokeWidth = 3f
+                )
+
+                // Path Polyline (if breadcrumbs available)
+                if (path.size >= 2) {
+                    Polyline(
+                        points = path,
+                        color = pathColor,
+                        width = 8f
+                    )
+                }
             }
+        } else {
+            // High-reliability OpenStreetMap fallback (no API key required)
+            val osmCurrent = remember(current) { GeoPoint(current.latitude, current.longitude) }
+            val osmPath = remember(path) { path.map { GeoPoint(it.latitude, it.longitude) } }
+
+            OsmMap(
+                current = osmCurrent,
+                accuracyMeters = accuracyMeters,
+                path = osmPath,
+                accentColor = accentColor,
+                pathColor = pathColor,
+                recenterTrigger = recenterTrigger,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Map provider toggle / indicator badge (Google Maps vs OSM)
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 12.dp, end = 12.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(DarkSurfaceVariant.copy(alpha = 0.88f))
+                .border(1.dp, DarkCardBorder, RoundedCornerShape(8.dp))
+                .clickable {
+                    if (hasGoogleMapsKey) {
+                        useGoogleMaps = !useGoogleMaps
+                    }
+                }
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Layers,
+                contentDescription = "Map Provider",
+                tint = if (useGoogleMaps) TrustBlue else Color.LightGray,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = if (useGoogleMaps) "Google Maps" else "OpenStreetMap",
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
 
         // Re-center FAB button
         FloatingActionButton(
             onClick = {
-                coroutineScope.launch {
-                    cameraPositionState.animate(
-                        CameraUpdateFactory.newLatLngZoom(current, 16.5f),
-                        durationMs = 500
-                    )
+                if (useGoogleMaps) {
+                    coroutineScope.launch {
+                        cameraPositionState.animate(
+                            CameraUpdateFactory.newLatLngZoom(current, 16.5f),
+                            durationMs = 500
+                        )
+                    }
+                } else {
+                    recenterTrigger++
                 }
             },
             containerColor = DarkSurface,

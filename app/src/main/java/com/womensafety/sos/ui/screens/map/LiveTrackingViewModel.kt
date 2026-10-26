@@ -43,16 +43,28 @@ class LiveTrackingViewModel(
         get() = authManager.currentUserId
 
     private var observeEmergencyJob: Job? = null
+    private var locationUpdatesJob: Job? = null
     private var addressJob: Job? = null
 
     init {
-        // Continuously stream current device GPS so the map always has a live location
-        viewModelScope.launch {
+        startLocationUpdates()
+    }
+
+    fun startLocationUpdates() {
+        locationUpdatesJob?.cancel()
+        locationUpdatesJob = viewModelScope.launch {
+            // Immediately populate last known location so the map doesn't wait
+            val lastLoc = locationTracker.getLastKnownLocation()
+            if (lastLoc != null && _currentLocation.value == null) {
+                _currentLocation.value = lastLoc
+            }
+
             try {
                 locationTracker.getLocationUpdates(intervalMs = 3000L).collect { loc ->
                     _currentLocation.value = loc
                 }
             } catch (e: Exception) {
+                Log.w(TAG, "Location updates stream paused/failed: ${e.message}")
                 val loc = locationTracker.getLastKnownLocation() ?: locationTracker.getCurrentLocation()
                 if (loc != null) _currentLocation.value = loc
             }

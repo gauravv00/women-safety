@@ -33,6 +33,7 @@ fun OsmMap(
     path: List<GeoPoint>,
     accentColor: Color,
     pathColor: Color,
+    recenterTrigger: Int = 0,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -41,7 +42,6 @@ fun OsmMap(
     // Persistent overlay references — avoids clear-and-recreate every recomposition
     val polyline = remember { Polyline() }
     val accuracyCircle = remember { Polygon() }
-    // Marker must be created with a MapView reference, so we defer its creation
 
     val mapView = remember {
         Configuration.getInstance().apply {
@@ -55,7 +55,7 @@ fun OsmMap(
             zoomController.setVisibility(
                 org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER
             )
-            controller.setZoom(16.0)
+            controller.setZoom(16.5)
             overlayManager.tilesOverlay.setColorFilter(TilesOverlay.INVERT_COLORS) // dark tiles
         }
     }
@@ -67,6 +67,15 @@ fun OsmMap(
     // Track whether overlays have been added to the map
     var overlaysAttached by remember { mutableStateOf(false) }
     var isDetached by remember { mutableStateOf(false) }
+
+    // Respond to recenter triggers from parent FAB
+    LaunchedEffect(recenterTrigger) {
+        if (recenterTrigger > 0 && !isDetached) {
+            mapView.controller.animateTo(current)
+            mapView.controller.setZoom(16.5)
+            lastAnimatedPoint = current
+        }
+    }
 
     DisposableEffect(lifecycleOwner) {
         val obs = LifecycleEventObserver { _, e ->

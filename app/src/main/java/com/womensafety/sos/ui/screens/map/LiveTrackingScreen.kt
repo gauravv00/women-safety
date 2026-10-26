@@ -48,6 +48,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -112,6 +113,7 @@ fun LiveTrackingScreen(
         val fine = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
         val coarse = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         if (fine || coarse) {
+            viewModel.startLocationUpdates()
             viewModel.refreshLocation(context)
         }
     }
@@ -119,7 +121,10 @@ fun LiveTrackingScreen(
     LaunchedEffect(Unit) {
         val hasPermission = ContextCompat.checkSelfPermission(
             context, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
+            context, Manifest.permission.ACCESS_COARSE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
+
         if (!hasPermission) {
             locationPermissionLauncher.launch(
                 arrayOf(
@@ -127,17 +132,23 @@ fun LiveTrackingScreen(
                     Manifest.permission.ACCESS_COARSE_LOCATION
                 )
             )
+        } else {
+            viewModel.startLocationUpdates()
+            viewModel.refreshLocation(context)
         }
     }
 
+    val hasValidTarget = (emergency != null && emergency?.lastLat != 0.0) || (currentLocation != null && currentLocation?.latitude != 0.0)
+    val defaultFallbackLat = 28.6139
+    val defaultFallbackLng = 77.2090
     val targetLat = emergency?.let { if (it.lastLat != 0.0) it.lastLat else null }
         ?: currentLocation?.latitude
-        ?: 0.0
+        ?: defaultFallbackLat
     val targetLng = emergency?.let { if (it.lastLng != 0.0) it.lastLng else null }
         ?: currentLocation?.longitude
-        ?: 0.0
+        ?: defaultFallbackLng
     val accuracy = emergency?.lastAccuracy?.toDouble()
-        ?: (currentLocation?.accuracy?.toDouble() ?: 15.0)
+        ?: (currentLocation?.accuracy?.toDouble() ?: 20.0)
 
     LaunchedEffect(targetLat, targetLng) {
         if (targetLat != 0.0 && targetLng != 0.0) {
@@ -180,30 +191,40 @@ fun LiveTrackingScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Google Maps Component
-            if (targetLat != 0.0 && targetLng != 0.0) {
-                SafetyMap(
-                    current = LatLng(targetLat, targetLng),
-                    accuracyMeters = accuracy,
-                    path = emptyList(),
-                    accentColor = accentColor,
-                    pathColor = accentColor,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                Box(
+            // Map Component (SafetyMap with Google Maps / OpenStreetMap fallback)
+            SafetyMap(
+                current = LatLng(targetLat, targetLng),
+                accuracyMeters = accuracy,
+                path = emptyList(),
+                accentColor = accentColor,
+                pathColor = accentColor,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            if (!hasValidTarget) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = DarkSurface.copy(alpha = 0.92f),
+                    border = BorderStroke(1.dp, DarkCardBorder),
                     modifier = Modifier
-                        .fillMaxSize()
-                        .background(DarkBackground),
-                    contentAlignment = Alignment.Center
+                        .align(Alignment.TopCenter)
+                        .padding(top = 16.dp)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = TrustBlue)
-                        Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            color = TrustBlue,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Acquiring live satellite coordinates...",
                             color = Color.LightGray,
-                            fontSize = 14.sp
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
@@ -409,9 +430,14 @@ fun LiveTrackingScreen(
                         OutlinedButton(
                             onClick = {
                                 if (targetLat != 0.0 && targetLng != 0.0) {
-                                    val uri = Uri.parse("geo:$targetLat,$targetLng?q=$targetLat,$targetLng")
+                                    val uri = Uri.parse("geo:$targetLat,$targetLng?q=$targetLat,$targetLng(SOS+Location)")
                                     val mapIntent = Intent(Intent.ACTION_VIEW, uri)
-                                    context.startActivity(mapIntent)
+                                    try {
+                                        context.startActivity(mapIntent)
+                                    } catch (e: Exception) {
+                                        val webUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=$targetLat,$targetLng")
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
+                                    }
                                 }
                             },
                             shape = RoundedCornerShape(12.dp),
