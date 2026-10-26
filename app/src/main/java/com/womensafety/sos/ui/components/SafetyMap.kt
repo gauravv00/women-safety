@@ -1,14 +1,31 @@
 package com.womensafety.sos.ui.components
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -19,9 +36,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.MapsInitializer
 import com.google.android.gms.maps.model.CameraPosition
@@ -35,11 +55,17 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
+import com.womensafety.sos.BuildConfig
+import com.womensafety.sos.ui.theme.AlertRed
+import com.womensafety.sos.ui.theme.DarkCardBorder
 import com.womensafety.sos.ui.theme.DarkSurface
+import com.womensafety.sos.ui.theme.DarkSurfaceVariant
+import com.womensafety.sos.ui.theme.SafetyGreen
+import com.womensafety.sos.ui.theme.TrustBlue
 import kotlinx.coroutines.launch
 import org.osmdroid.util.GeoPoint
 
-// High-contrast brutalist dark map styling for Google Maps matching the app's aesthetic
+// High-contrast brutalist dark map styling for Google Maps
 private const val DARK_MAP_STYLE_JSON = """
 [
   {"elementType": "geometry", "stylers": [{"color": "#121212"}]},
@@ -67,7 +93,7 @@ private const val DARK_MAP_STYLE_JSON = """
 
 /**
  * Dedicated Google Maps component for real-time SOS tracking with high-contrast dark theme,
- * accuracy radius visualization, and camera re-centering.
+ * accuracy radius visualization, and seamless OpenStreetMap fallback when an API key is missing.
  */
 @Composable
 fun SafetyMap(
@@ -80,6 +106,8 @@ fun SafetyMap(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val hasValidGoogleMapsKey = BuildConfig.MAPS_API_KEY.isNotBlank() &&
+            !BuildConfig.MAPS_API_KEY.contains("Dummy")
 
     // Initialize MapsInitializer early to prevent CameraUpdateFactory NullPointerException
     LaunchedEffect(Unit) {
@@ -88,8 +116,8 @@ fun SafetyMap(
         } catch (_: Exception) {}
     }
 
-    // Google Maps is the primary map
-    var isGoogleMapsAvailable by remember { mutableStateOf(true) }
+    // Default to Google Maps if API key is present; otherwise default to OpenStreetMap so tiles actually render!
+    var useGoogleMaps by remember { mutableStateOf(hasValidGoogleMapsKey) }
     var recenterTrigger by remember { mutableIntStateOf(0) }
 
     val cameraPositionState = rememberCameraPositionState {
@@ -125,8 +153,8 @@ fun SafetyMap(
 
     var hasCenteredInitially by remember { mutableStateOf(false) }
 
-    LaunchedEffect(current) {
-        if (!isGoogleMapsAvailable) return@LaunchedEffect
+    LaunchedEffect(current, useGoogleMaps) {
+        if (!useGoogleMaps) return@LaunchedEffect
         try {
             if (!hasCenteredInitially && current.latitude != 0.0 && current.longitude != 0.0) {
                 cameraPositionState.position = CameraPosition.fromLatLngZoom(current, 16.5f)
@@ -143,7 +171,7 @@ fun SafetyMap(
     }
 
     Box(modifier = modifier) {
-        if (isGoogleMapsAvailable) {
+        if (useGoogleMaps) {
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
@@ -175,8 +203,44 @@ fun SafetyMap(
                     )
                 }
             }
+
+            // If user opened Google Maps without an API key, explain why tiles are beige and provide 1-tap switch
+            if (!hasValidGoogleMapsKey) {
+                Surface(
+                    color = DarkSurface.copy(alpha = 0.94f),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, AlertRed.copy(alpha = 0.6f)),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Google Maps API Key Missing", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Google rejected tile download (Authorization failure). Add MAPS_API_KEY to local.properties, or switch to OpenStreetMap for instant tiles.",
+                            color = Color.LightGray,
+                            fontSize = 11.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { useGoogleMaps = false },
+                            colors = ButtonDefaults.buttonColors(containerColor = TrustBlue),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Text("Switch to OpenStreetMap (Instant Tiles)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
         } else {
-            // Safety fallback if Google Play Services is missing
+            // High-reliability OpenStreetMap fallback (renders instantly without an API key)
             val osmCurrent = remember(current) { GeoPoint(current.latitude, current.longitude) }
             val osmPath = remember(path) { path.map { GeoPoint(it.latitude, it.longitude) } }
 
@@ -191,10 +255,37 @@ fun SafetyMap(
             )
         }
 
+        // Map provider toggle / indicator badge (Google Maps vs OpenStreetMap)
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 12.dp, end = 12.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(DarkSurfaceVariant.copy(alpha = 0.92f))
+                .border(1.dp, DarkCardBorder, RoundedCornerShape(8.dp))
+                .clickable { useGoogleMaps = !useGoogleMaps }
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Layers,
+                contentDescription = "Switch Map",
+                tint = if (useGoogleMaps) TrustBlue else SafetyGreen,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = if (useGoogleMaps) "Google Maps" else "OpenStreetMap",
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
         // Re-center FAB button
         FloatingActionButton(
             onClick = {
-                if (isGoogleMapsAvailable) {
+                if (useGoogleMaps) {
                     coroutineScope.launch {
                         try {
                             cameraPositionState.animate(
