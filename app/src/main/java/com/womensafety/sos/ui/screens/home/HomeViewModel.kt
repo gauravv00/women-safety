@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.hardware.Sensor
 import android.hardware.SensorManager
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.womensafety.sos.data.entity.IncidentLog
@@ -11,14 +12,15 @@ import com.womensafety.sos.data.entity.TrustedContact
 import com.womensafety.sos.di.ServiceLocator
 import com.womensafety.sos.domain.repository.SafetyRepository
 import com.womensafety.sos.service.EmergencyForegroundService
+import com.womensafety.sos.service.EmergencySosService
 import com.womensafety.sos.service.ShakeDetector
+import com.womensafety.sos.service.SosTriggerHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 class HomeViewModel(
     private val repository: SafetyRepository = ServiceLocator.repository
@@ -38,41 +40,8 @@ class HomeViewModel(
     private var shakeDetector: ShakeDetector? = null
     private var sensorManager: SensorManager? = null
 
-    @android.annotation.SuppressLint("MissingPermission")
     fun triggerSos(context: Context, triggerSource: String = "MANUAL_HOLD") {
-        viewModelScope.launch {
-            val fusedClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context)
-            val location = EmergencyForegroundService.currentLocation.value ?: try {
-                fusedClient.lastLocation.await()
-            } catch (e: Exception) {
-                null
-            }
-            val lat = location?.latitude ?: 0.0
-            val lng = location?.longitude ?: 0.0
-
-            val incidentId = repository.createIncident(lat, lng, triggerSource)
-            repository.sendEmergencySmsToContacts(lat, lng, incidentId)
-
-            val settings = ServiceLocator.userPreferences.settings.value
-            repository.broadcastSosToGuardians(
-                myPairingCode = settings.myPairingCode,
-                myName = settings.displayName,
-                incidentId = incidentId,
-                lat = lat,
-                lng = lng,
-                status = "ACTIVE"
-            )
-
-            val serviceIntent = Intent(context, EmergencyForegroundService::class.java).apply {
-                action = EmergencyForegroundService.ACTION_START_SOS
-                putExtra(EmergencyForegroundService.EXTRA_INCIDENT_ID, incidentId)
-            }
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                context.startForegroundService(serviceIntent)
-            } else {
-                context.startService(serviceIntent)
-            }
-        }
+        SosTriggerHelper.triggerEmergency(context, triggerSource)
     }
 
     fun cancelSos(context: Context) {
@@ -91,6 +60,11 @@ class HomeViewModel(
                     status = "RESOLVED"
                 )
             }
+            try {
+                EmergencySosService.stop(context)
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Failed stopping EmergencySosService on cancel", e)
+            }
             val serviceIntent = Intent(context, EmergencyForegroundService::class.java).apply {
                 action = EmergencyForegroundService.ACTION_STOP_SOS
             }
@@ -106,17 +80,20 @@ class HomeViewModel(
         val settings = ServiceLocator.userPreferences.settings.value
         if (!settings.shakeToTriggerEnabled) return
 
-        sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
         val accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         shakeDetector = ShakeDetector {
-            if (activeIncident.value == null) {
+            if (activeIncident.value == null && !EmergencyForegroundService.isServiceRunning.value) {
                 triggerSos(context, "SHAKE")
             }
         }
-        sensorManager?.registerListener(shakeDetector, accelerometer, SensorManager.SENSOR_DELAY_UI)
+        accelerometer?.let {
+            sensorManager?.registerListener(shakeDetector, it, SensorManager.SENSOR_DELAY_UI)
+        }
     }
 
     fun unregisterShakeDetector() {
         shakeDetector?.let { sensorManager?.unregisterListener(it) }
+        shakeDetector = null
     }
 }

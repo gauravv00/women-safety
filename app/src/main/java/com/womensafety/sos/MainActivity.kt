@@ -1,6 +1,10 @@
 package com.womensafety.sos
 
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorManager
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -10,11 +14,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.womensafety.sos.di.ServiceLocator
+import com.womensafety.sos.service.EmergencyForegroundService
 import com.womensafety.sos.service.GuardianMonitorService
+import com.womensafety.sos.service.ShakeDetector
+import com.womensafety.sos.service.SosTriggerHelper
 import com.womensafety.sos.ui.navigation.MainNavGraph
 import com.womensafety.sos.ui.theme.WomenSafetyTheme
 
 class MainActivity : ComponentActivity() {
+
+    private var sensorManager: SensorManager? = null
+    private var shakeDetector: ShakeDetector? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
@@ -28,6 +39,9 @@ class MainActivity : ComponentActivity() {
             GuardianMonitorService.start(this)
         }
 
+        // Initialize app-wide Shake detection for SOS
+        initShakeDetection()
+
         setContent {
             WomenSafetyTheme {
                 Surface(
@@ -40,6 +54,33 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun initShakeDetection() {
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        shakeDetector = ShakeDetector {
+            val settings = ServiceLocator.userPreferences.settings.value
+            if (settings.shakeToTriggerEnabled && !EmergencyForegroundService.isServiceRunning.value) {
+                runOnUiThread {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "🚨 Shake detected! Broadcasting Emergency SOS...",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                SosTriggerHelper.triggerEmergency(this@MainActivity, "SHAKE")
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        registerShakeDetectorIfEnabled()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        shakeDetector?.let { sensorManager?.unregisterListener(it) }
+    }
+
     override fun onStop() {
         super.onStop()
         cancelNonEmergencyVibration()
@@ -50,9 +91,20 @@ class MainActivity : ComponentActivity() {
         cancelNonEmergencyVibration()
     }
 
+    private fun registerShakeDetectorIfEnabled() {
+        val settings = ServiceLocator.userPreferences.settings.value
+        if (settings.shakeToTriggerEnabled) {
+            val accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+            accelerometer?.let {
+                shakeDetector?.reset()
+                sensorManager?.registerListener(shakeDetector, it, SensorManager.SENSOR_DELAY_UI)
+            }
+        }
+    }
+
     private fun cancelNonEmergencyVibration() {
         try {
-            if (!com.womensafety.sos.service.EmergencyForegroundService.isServiceRunning.value) {
+            if (!EmergencyForegroundService.isServiceRunning.value) {
                 val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                     (getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager)?.defaultVibrator
                 } else {
