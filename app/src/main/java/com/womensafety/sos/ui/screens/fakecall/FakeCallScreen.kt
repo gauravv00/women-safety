@@ -60,6 +60,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -100,6 +101,7 @@ fun FakeCallScreen(
     val stage by viewModel.stage.collectAsState()
     val callerName by viewModel.callerName.collectAsState()
     val callerNumber by viewModel.callerNumber.collectAsState()
+    val callerTag by viewModel.callerTag.collectAsState()
     val callSeconds by viewModel.callSeconds.collectAsState()
     val scheduledCountdown by viewModel.scheduledCountdown.collectAsState()
     val isMuted by viewModel.isMuted.collectAsState()
@@ -143,9 +145,10 @@ fun FakeCallScreen(
             FakeCallSetupView(
                 callerName = callerName,
                 callerNumber = callerNumber,
+                callerTag = callerTag,
                 scheduledCountdown = scheduledCountdown,
                 onBackClick = onDismiss,
-                onSetCaller = { name, num -> viewModel.setCallerDetails(name, num) },
+                onSetCaller = { name, num, tag -> viewModel.setCallerDetails(name, num, tag) },
                 onTriggerNow = { viewModel.startImmediateIncoming(context) },
                 onSchedule = { sec -> viewModel.scheduleCall(sec, context) },
                 onCancelSchedule = { viewModel.cancelSchedule() }
@@ -155,6 +158,7 @@ fun FakeCallScreen(
             IncomingCallView(
                 callerName = callerName,
                 callerNumber = callerNumber,
+                callerTag = callerTag,
                 onAccept = { viewModel.answerCall(context) },
                 onDecline = { viewModel.declineCall(context, onDismiss) },
                 onOpenSettings = { viewModel.showSetup() }
@@ -164,6 +168,7 @@ fun FakeCallScreen(
             InCallActiveView(
                 callerName = callerName,
                 callerNumber = callerNumber,
+                callerTag = callerTag,
                 callSeconds = callSeconds,
                 isMuted = isMuted,
                 isSpeakerOn = isSpeakerOn,
@@ -192,24 +197,19 @@ fun FakeCallScreen(
 fun FakeCallSetupView(
     callerName: String,
     callerNumber: String,
+    callerTag: String = "Mobile • Jio 4G, India",
     scheduledCountdown: Int,
     onBackClick: () -> Unit,
-    onSetCaller: (String, String) -> Unit,
+    onSetCaller: (String, String, String) -> Unit,
     onTriggerNow: () -> Unit,
     onSchedule: (Int) -> Unit,
     onCancelSchedule: () -> Unit
 ) {
     var editName by remember { mutableStateOf(callerName) }
     var editNumber by remember { mutableStateOf(callerNumber) }
+    var editTag by remember { mutableStateOf(callerTag) }
 
-    val presets = listOf(
-        "Mom" to "+1 (555) 019-2834",
-        "Dad" to "+1 (555) 018-9124",
-        "Police" to "112",
-        "Cab Driver" to "+91 98765 12345",
-        "Boss" to "+1 (555) 014-4455",
-        "Home" to "+1 (555) 010-0011"
-    )
+    val presets = FakeCallViewModel.INDIAN_PRESETS
 
     Scaffold(
         topBar = {
@@ -269,16 +269,17 @@ fun FakeCallSetupView(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    presets.forEach { (name, num) ->
-                        val isSelected = editName.equals(name, ignoreCase = true)
+                    presets.forEach { preset ->
+                        val isSelected = editName.equals(preset.name, ignoreCase = true)
                         FilterChip(
                             selected = isSelected,
                             onClick = {
-                                editName = name
-                                editNumber = num
-                                onSetCaller(name, num)
+                                editName = preset.name
+                                editNumber = preset.number
+                                editTag = preset.tag
+                                onSetCaller(preset.name, preset.number, preset.tag)
                             },
-                            label = { Text(name) },
+                            label = { Text(preset.name) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = TrustBlue,
                                 selectedLabelColor = Color.White,
@@ -294,7 +295,7 @@ fun FakeCallSetupView(
                     value = editName,
                     onValueChange = {
                         editName = it
-                        onSetCaller(it, editNumber)
+                        onSetCaller(it, editNumber, editTag)
                     },
                     label = { Text("Caller Name") },
                     singleLine = true,
@@ -312,7 +313,7 @@ fun FakeCallSetupView(
                     value = editNumber,
                     onValueChange = {
                         editNumber = it
-                        onSetCaller(editName, it)
+                        onSetCaller(editName, it, editTag)
                     },
                     label = { Text("Caller Number / Label") },
                     singleLine = true,
@@ -409,6 +410,7 @@ fun FakeCallSetupView(
 fun IncomingCallView(
     callerName: String,
     callerNumber: String,
+    callerTag: String = "Mobile • Jio 4G, India",
     onAccept: () -> Unit,
     onDecline: () -> Unit,
     onOpenSettings: () -> Unit
@@ -483,9 +485,31 @@ fun IncomingCallView(
                         )
                         Text(
                             text = callerNumber,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.LightGray
+                            style = MaterialTheme.typography.titleSmall,
+                            color = Color(0xFFE2E8F0)
                         )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Surface(
+                                color = TrustBlue.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    text = "HD",
+                                    color = TrustBlue,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                )
+                            }
+                            Text(
+                                text = callerTag,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.LightGray
+                            )
+                        }
                         Text(
                             text = "Incoming Call...",
                             style = MaterialTheme.typography.titleMedium,
@@ -603,9 +627,35 @@ fun IncomingCallView(
 
                     Text(
                         text = callerNumber,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.LightGray
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFE2E8F0)
                     )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Surface(
+                            color = TrustBlue.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "HD",
+                                color = TrustBlue,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                            )
+                        }
+                        Text(
+                            text = callerTag,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.LightGray
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -677,6 +727,7 @@ fun IncomingCallView(
 fun InCallActiveView(
     callerName: String,
     callerNumber: String,
+    callerTag: String = "Mobile • Jio 4G, India",
     callSeconds: Int,
     isMuted: Boolean,
     isSpeakerOn: Boolean,
@@ -728,7 +779,7 @@ fun InCallActiveView(
                         color = Color.White
                     )
                     Text(
-                        text = callerNumber,
+                        text = "$callerNumber • $callerTag",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )
@@ -809,7 +860,7 @@ fun InCallActiveView(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = callerNumber,
+                        text = "$callerNumber • $callerTag",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )

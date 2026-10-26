@@ -28,18 +28,72 @@ enum class FakeCallStage {
     ENDED
 }
 
+data class IndianCallerPreset(
+    val name: String,
+    val number: String,
+    val tag: String,
+    val voicePhrase: String
+)
+
 class FakeCallViewModel : ViewModel(), TextToSpeech.OnInitListener {
 
     private val TAG = "FakeCallViewModel"
 
+    companion object {
+        val INDIAN_PRESETS = listOf(
+            IndianCallerPreset(
+                name = "Maa",
+                number = "+91 98201 54321",
+                tag = "Mobile • Jio 4G, India",
+                voicePhrase = "Haan beta, kahan tak pahunche? Main gate par hi wait kar rahi hoon, jaldi aao."
+            ),
+            IndianCallerPreset(
+                name = "Papa",
+                number = "+91 98112 34567",
+                tag = "Mobile • Airtel 5G, Delhi NCR",
+                voicePhrase = "Beta sab theek hai na? Main gaadi nikaal chuka hoon, bas do minute mein pahunch raha hoon."
+            ),
+            IndianCallerPreset(
+                name = "Bhaiya",
+                number = "+91 99100 87654",
+                tag = "Mobile • Vi, Mumbai",
+                voicePhrase = "Hey, main live location dekh raha hoon. Stay where you are, I'm right around the corner."
+            ),
+            IndianCallerPreset(
+                name = "Cab Driver (Ola/Uber)",
+                number = "+91 98765 43210",
+                tag = "White Dzire (DL 1Z A 4421)",
+                voicePhrase = "Madam, main location par aa gaya hoon, hazard lights on hain gaadi ki."
+            ),
+            IndianCallerPreset(
+                name = "Police Helpline",
+                number = "112",
+                tag = "National Emergency Response System",
+                voicePhrase = "Police emergency control room. Stay on the line, unit is monitoring your area."
+            ),
+            IndianCallerPreset(
+                name = "Office Manager",
+                number = "+91 98200 98765",
+                tag = "Work • Gurugram",
+                voicePhrase = "Hi, just checking in. Did your cab arrive? Let us know when you reach safely."
+            )
+        )
+    }
+
     private val _stage = MutableStateFlow(FakeCallStage.INCOMING)
     val stage: StateFlow<FakeCallStage> = _stage.asStateFlow()
 
-    private val _callerName = MutableStateFlow("Mom")
+    private val _callerName = MutableStateFlow("Maa")
     val callerName: StateFlow<String> = _callerName.asStateFlow()
 
-    private val _callerNumber = MutableStateFlow("+1 (555) 019-2834")
+    private val _callerNumber = MutableStateFlow("+91 98201 54321")
     val callerNumber: StateFlow<String> = _callerNumber.asStateFlow()
+
+    private val _callerTag = MutableStateFlow("Mobile • Jio 4G, India")
+    val callerTag: StateFlow<String> = _callerTag.asStateFlow()
+
+    private val _voicePhrase = MutableStateFlow("Haan beta, kahan tak pahunche? Main gate par hi wait kar rahi hoon, jaldi aao.")
+    val voicePhrase: StateFlow<String> = _voicePhrase.asStateFlow()
 
     private val _callSeconds = MutableStateFlow(0)
     val callSeconds: StateFlow<Int> = _callSeconds.asStateFlow()
@@ -85,14 +139,38 @@ class FakeCallViewModel : ViewModel(), TextToSpeech.OnInitListener {
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            tts?.language = Locale.getDefault()
+            try {
+                // Try Indian English locale first for natural authenticity
+                val inLocale = Locale("en", "IN")
+                val langAvailable = tts?.isLanguageAvailable(inLocale) ?: -1
+                if (langAvailable >= TextToSpeech.LANG_AVAILABLE) {
+                    tts?.language = inLocale
+                } else {
+                    tts?.language = Locale.getDefault()
+                }
+            } catch (_: Exception) {
+                tts?.language = Locale.getDefault()
+            }
             isTtsReady = true
         }
     }
 
-    fun setCallerDetails(name: String, number: String) {
-        _callerName.value = name.ifBlank { "Mom" }
-        _callerNumber.value = number.ifBlank { "Mobile" }
+    fun setCallerDetails(
+        name: String,
+        number: String,
+        tag: String = "Mobile • Jio 4G, India",
+        phrase: String = ""
+    ) {
+        _callerName.value = name.ifBlank { "Maa" }
+        _callerNumber.value = number.ifBlank { "+91 98201 54321" }
+        _callerTag.value = tag.ifBlank { "Mobile • India" }
+        if (phrase.isNotBlank()) {
+            _voicePhrase.value = phrase
+        }
+    }
+
+    fun applyPreset(preset: IndianCallerPreset) {
+        setCallerDetails(preset.name, preset.number, preset.tag, preset.voicePhrase)
     }
 
     fun startImmediateIncoming(context: Context) {
@@ -100,14 +178,28 @@ class FakeCallViewModel : ViewModel(), TextToSpeech.OnInitListener {
         startRinging(context)
     }
 
-    fun scheduleCall(seconds: Int, context: Context) {
+    fun openSetup() {
+        stopRinging()
         _stage.value = FakeCallStage.SETUP
-        _scheduledCountdown.value = seconds
+    }
+
+    fun showSetup() = openSetup()
+
+    fun scheduleCall(delaySeconds: Int, context: Context) {
+        scheduleCall(context, delaySeconds)
+    }
+
+    fun scheduleCall(context: Context, delaySeconds: Int) {
+        _stage.value = FakeCallStage.SETUP
+        _scheduledCountdown.value = delaySeconds
+
         countdownJob?.cancel()
         countdownJob = viewModelScope.launch {
-            while (_scheduledCountdown.value > 0) {
+            var remaining = delaySeconds
+            while (remaining > 0) {
                 delay(1000L)
-                _scheduledCountdown.value -= 1
+                remaining -= 1
+                _scheduledCountdown.value = remaining
             }
             startImmediateIncoming(context)
         }
@@ -138,10 +230,6 @@ class FakeCallViewModel : ViewModel(), TextToSpeech.OnInitListener {
 
             activeVibrator = getVibrator(context.applicationContext)
 
-            // Pulse finite 1-second vibration in a coroutine loop.
-            // Using a finite one-shot pulse guarantees that if the app is killed or
-            // the user picks up/declines, the vibration physically terminates and
-            // never repeats indefinitely on the Android system service.
             vibrateJob?.cancel()
             vibrateJob = viewModelScope.launch {
                 while (_stage.value == FakeCallStage.INCOMING) {
@@ -169,45 +257,36 @@ class FakeCallViewModel : ViewModel(), TextToSpeech.OnInitListener {
         try {
             ringtone?.stop()
             ringtone = null
-        } catch (e: Exception) {
-            // ignore
-        }
+        } catch (_: Exception) {}
 
-        // Cancel pulse coroutine
         vibrateJob?.cancel()
         vibrateJob = null
 
-        // Explicitly cancel active vibrator
         try {
             activeVibrator?.cancel()
-        } catch (e: Exception) {
-            Log.w(TAG, "Error cancelling active vibrator: ${e.message}")
-        }
+            activeVibrator = null
+        } catch (_: Exception) {}
 
-        // Secondary fallback: cancel directly on system service via context
         appContext?.let { ctx ->
             try {
-                getVibrator(ctx)?.cancel()
-            } catch (e: Exception) {
-                // ignore
-            }
+                val v = getVibrator(ctx)
+                v?.cancel()
+            } catch (_: Exception) {}
         }
-        activeVibrator = null
     }
 
-    fun answerCall(context: Context) {
+    fun answerCall(context: Context? = null) {
         stopRinging()
         _stage.value = FakeCallStage.IN_CALL
         _callSeconds.value = 0
 
-        // Start timer counting up
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
             while (_stage.value == FakeCallStage.IN_CALL) {
                 delay(1000L)
                 _callSeconds.value += 1
 
-                // Simulate realistic speech voice after 2 seconds
+                // Simulate authentic spoken dialogue after 1.5 seconds
                 if (_callSeconds.value == 2 && isTtsReady && !_isOnHold.value) {
                     playRealisticVoice()
                 }
@@ -217,7 +296,9 @@ class FakeCallViewModel : ViewModel(), TextToSpeech.OnInitListener {
 
     private fun playRealisticVoice() {
         try {
-            val phrase = "Hey, are you there? I'm waiting for you right outside. Come quickly, okay? I'm watching the street for you."
+            val phrase = _voicePhrase.value.ifBlank {
+                "Haan beta, kahan tak pahunche? Main gate par hi wait kar rahi hoon, jaldi aao."
+            }
             tts?.speak(phrase, TextToSpeech.QUEUE_FLUSH, null, "fake_call_voice")
         } catch (e: Exception) {
             Log.w(TAG, "TTS speak error: ${e.message}")
@@ -236,9 +317,7 @@ class FakeCallViewModel : ViewModel(), TextToSpeech.OnInitListener {
         tts?.stop()
         try {
             toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP2, 200)
-        } catch (e: Exception) {
-            // ignore
-        }
+        } catch (_: Exception) {}
         _stage.value = FakeCallStage.ENDED
         onDismiss()
     }
@@ -262,10 +341,13 @@ class FakeCallViewModel : ViewModel(), TextToSpeech.OnInitListener {
         _showKeypad.value = !_showKeypad.value
     }
 
-    fun pressKeypadDigit(digit: Char) {
+    fun pressKeypadDigit(digit: Char) = appendKeypadDigit(digit)
+
+    fun appendKeypadDigit(digit: Char) {
         _dialedDigits.value += digit
         try {
             val tone = when (digit) {
+                '0' -> ToneGenerator.TONE_DTMF_0
                 '1' -> ToneGenerator.TONE_DTMF_1
                 '2' -> ToneGenerator.TONE_DTMF_2
                 '3' -> ToneGenerator.TONE_DTMF_3
@@ -275,15 +357,12 @@ class FakeCallViewModel : ViewModel(), TextToSpeech.OnInitListener {
                 '7' -> ToneGenerator.TONE_DTMF_7
                 '8' -> ToneGenerator.TONE_DTMF_8
                 '9' -> ToneGenerator.TONE_DTMF_9
-                '0' -> ToneGenerator.TONE_DTMF_0
                 '*' -> ToneGenerator.TONE_DTMF_S
                 '#' -> ToneGenerator.TONE_DTMF_P
                 else -> ToneGenerator.TONE_PROP_BEEP
             }
             toneGenerator?.startTone(tone, 120)
-        } catch (e: Exception) {
-            Log.w(TAG, "Keypad tone error: ${e.message}")
-        }
+        } catch (_: Exception) {}
     }
 
     fun deleteKeypadDigit() {
@@ -292,17 +371,17 @@ class FakeCallViewModel : ViewModel(), TextToSpeech.OnInitListener {
         }
     }
 
-    fun showSetup() {
-        _stage.value = FakeCallStage.SETUP
-    }
-
     override fun onCleared() {
         super.onCleared()
         stopRinging()
         timerJob?.cancel()
         countdownJob?.cancel()
-        tts?.stop()
-        tts?.shutdown()
-        toneGenerator?.release()
+        try {
+            tts?.stop()
+            tts?.shutdown()
+        } catch (_: Exception) {}
+        try {
+            toneGenerator?.release()
+        } catch (_: Exception) {}
     }
 }
