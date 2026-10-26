@@ -1,23 +1,14 @@
 package com.womensafety.sos.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -28,12 +19,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.MapsInitializer
 import com.google.android.gms.maps.model.CameraPosition
@@ -47,40 +35,40 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
-import com.womensafety.sos.BuildConfig
-import com.womensafety.sos.ui.theme.DarkCardBorder
 import com.womensafety.sos.ui.theme.DarkSurface
-import com.womensafety.sos.ui.theme.DarkSurfaceVariant
-import com.womensafety.sos.ui.theme.TrustBlue
 import kotlinx.coroutines.launch
 import org.osmdroid.util.GeoPoint
 
-// High-contrast brutalist dark map styling matching the app's #0A0A0A aesthetic
+// High-contrast brutalist dark map styling for Google Maps matching the app's aesthetic
 private const val DARK_MAP_STYLE_JSON = """
 [
   {"elementType": "geometry", "stylers": [{"color": "#121212"}]},
   {"elementType": "labels.icon", "stylers": [{"visibility": "off"}]},
-  {"elementType": "labels.text.fill", "stylers": [{"color": "#757575"}]},
+  {"elementType": "labels.text.fill", "stylers": [{"color": "#8c8c8c"}]},
   {"elementType": "labels.text.stroke", "stylers": [{"color": "#121212"}]},
   {"featureType": "administrative", "elementType": "geometry", "stylers": [{"color": "#333333"}]},
-  {"featureType": "administrative.country", "elementType": "labels.text.fill", "stylers": [{"color": "#9e9e9e"}]},
-  {"featureType": "administrative.locality", "elementType": "labels.text.fill", "stylers": [{"color": "#bdbdbd"}]},
-  {"featureType": "poi", "elementType": "labels.text.fill", "stylers": [{"color": "#757575"}]},
+  {"featureType": "administrative.country", "elementType": "labels.text.fill", "stylers": [{"color": "#a8a8a8"}]},
+  {"featureType": "administrative.locality", "elementType": "labels.text.fill", "stylers": [{"color": "#d0d0d0"}]},
+  {"featureType": "poi", "elementType": "labels.text.fill", "stylers": [{"color": "#8c8c8c"}]},
   {"featureType": "poi.park", "elementType": "geometry", "stylers": [{"color": "#181818"}]},
   {"featureType": "poi.park", "elementType": "labels.text.fill", "stylers": [{"color": "#616161"}]},
   {"featureType": "poi.park", "elementType": "labels.text.stroke", "stylers": [{"color": "#121212"}]},
-  {"featureType": "road", "elementType": "geometry.fill", "stylers": [{"color": "#212121"}]},
-  {"featureType": "road", "elementType": "labels.text.fill", "stylers": [{"color": "#8a8a8a"}]},
-  {"featureType": "road.arterial", "elementType": "geometry", "stylers": [{"color": "#2c2c2c"}]},
-  {"featureType": "road.highway", "elementType": "geometry", "stylers": [{"color": "#3a3a3a"}]},
-  {"featureType": "road.highway.controlled_access", "elementType": "geometry", "stylers": [{"color": "#4e4e4e"}]},
-  {"featureType": "road.local", "elementType": "labels.text.fill", "stylers": [{"color": "#616161"}]},
-  {"featureType": "transit", "elementType": "labels.text.fill", "stylers": [{"color": "#757575"}]},
+  {"featureType": "road", "elementType": "geometry.fill", "stylers": [{"color": "#242424"}]},
+  {"featureType": "road", "elementType": "labels.text.fill", "stylers": [{"color": "#9e9e9e"}]},
+  {"featureType": "road.arterial", "elementType": "geometry", "stylers": [{"color": "#2e2e2e"}]},
+  {"featureType": "road.highway", "elementType": "geometry", "stylers": [{"color": "#3d3d3d"}]},
+  {"featureType": "road.highway.controlled_access", "elementType": "geometry", "stylers": [{"color": "#525252"}]},
+  {"featureType": "road.local", "elementType": "labels.text.fill", "stylers": [{"color": "#757575"}]},
+  {"featureType": "transit", "elementType": "labels.text.fill", "stylers": [{"color": "#8c8c8c"}]},
   {"featureType": "water", "elementType": "geometry", "stylers": [{"color": "#0a0a0a"}]},
-  {"featureType": "water", "elementType": "labels.text.fill", "stylers": [{"color": "#3d3d3d"}]}
+  {"featureType": "water", "elementType": "labels.text.fill", "stylers": [{"color": "#4a4a4a"}]}
 ]
 """
 
+/**
+ * Dedicated Google Maps component for real-time SOS tracking with high-contrast dark theme,
+ * accuracy radius visualization, and camera re-centering.
+ */
 @Composable
 fun SafetyMap(
     current: LatLng,
@@ -92,7 +80,6 @@ fun SafetyMap(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val hasGoogleMapsKey = BuildConfig.MAPS_API_KEY.isNotBlank()
 
     // Initialize MapsInitializer early to prevent CameraUpdateFactory NullPointerException
     LaunchedEffect(Unit) {
@@ -101,8 +88,8 @@ fun SafetyMap(
         } catch (_: Exception) {}
     }
 
-    // Default to Google Maps if API key is provided; otherwise fallback smoothly to OpenStreetMap
-    var useGoogleMaps by remember { mutableStateOf(hasGoogleMapsKey) }
+    // Google Maps is the primary map
+    var isGoogleMapsAvailable by remember { mutableStateOf(true) }
     var recenterTrigger by remember { mutableIntStateOf(0) }
 
     val cameraPositionState = rememberCameraPositionState {
@@ -136,11 +123,10 @@ fun SafetyMap(
 
     val markerState = remember(current) { MarkerState(position = current) }
 
-    // Track whether camera has been initialized
     var hasCenteredInitially by remember { mutableStateOf(false) }
 
-    LaunchedEffect(current, useGoogleMaps) {
-        if (!useGoogleMaps) return@LaunchedEffect
+    LaunchedEffect(current) {
+        if (!isGoogleMapsAvailable) return@LaunchedEffect
         try {
             if (!hasCenteredInitially && current.latitude != 0.0 && current.longitude != 0.0) {
                 cameraPositionState.position = CameraPosition.fromLatLngZoom(current, 16.5f)
@@ -157,7 +143,7 @@ fun SafetyMap(
     }
 
     Box(modifier = modifier) {
-        if (useGoogleMaps) {
+        if (isGoogleMapsAvailable) {
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
@@ -190,7 +176,7 @@ fun SafetyMap(
                 }
             }
         } else {
-            // High-reliability OpenStreetMap fallback (no API key required)
+            // Safety fallback if Google Play Services is missing
             val osmCurrent = remember(current) { GeoPoint(current.latitude, current.longitude) }
             val osmPath = remember(path) { path.map { GeoPoint(it.latitude, it.longitude) } }
 
@@ -205,41 +191,10 @@ fun SafetyMap(
             )
         }
 
-        // Map provider toggle / indicator badge (Google Maps vs OSM)
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 12.dp, end = 12.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(DarkSurfaceVariant.copy(alpha = 0.88f))
-                .border(1.dp, DarkCardBorder, RoundedCornerShape(8.dp))
-                .clickable {
-                    if (hasGoogleMapsKey) {
-                        useGoogleMaps = !useGoogleMaps
-                    }
-                }
-                .padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Layers,
-                contentDescription = "Map Provider",
-                tint = if (useGoogleMaps) TrustBlue else Color.LightGray,
-                modifier = Modifier.size(14.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = if (useGoogleMaps) "Google Maps" else "OpenStreetMap",
-                color = Color.White,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-
         // Re-center FAB button
         FloatingActionButton(
             onClick = {
-                if (useGoogleMaps) {
+                if (isGoogleMapsAvailable) {
                     coroutineScope.launch {
                         try {
                             cameraPositionState.animate(
