@@ -1,6 +1,5 @@
 package com.womensafety.sos.ui.components
 
-import android.graphics.Paint
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,10 +38,6 @@ fun OsmMap(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // Persistent overlay references — avoids clear-and-recreate every recomposition
-    val polyline = remember { Polyline() }
-    val accuracyCircle = remember { Polygon() }
-
     val mapView = remember {
         Configuration.getInstance().apply {
             userAgentValue = context.packageName
@@ -60,7 +55,10 @@ fun OsmMap(
         }
     }
 
-    val marker = remember { Marker(mapView).apply { title = "Live SOS Location" } }
+    // Persistent overlays bound to the MapView instance
+    val polyline = remember(mapView) { Polyline(mapView) }
+    val accuracyCircle = remember(mapView) { Polygon(mapView) }
+    val marker = remember(mapView) { Marker(mapView).apply { title = "Live SOS Location" } }
 
     // Track last animated-to position to skip no-op animateTo calls
     var lastAnimatedPoint by remember { mutableStateOf<GeoPoint?>(null) }
@@ -71,9 +69,11 @@ fun OsmMap(
     // Respond to recenter triggers from parent FAB
     LaunchedEffect(recenterTrigger) {
         if (recenterTrigger > 0 && !isDetached) {
-            mapView.controller.animateTo(current)
-            mapView.controller.setZoom(16.5)
-            lastAnimatedPoint = current
+            try {
+                mapView.controller.animateTo(current)
+                mapView.controller.setZoom(16.5)
+                lastAnimatedPoint = current
+            } catch (_: Exception) {}
         }
     }
 
@@ -107,25 +107,36 @@ fun OsmMap(
                     overlaysAttached = true
                 }
 
-                // Update polyline path (only mutate data, don't recreate overlay)
+                // Update polyline path safely
                 if (path.size >= 2) {
-                    polyline.setPoints(path)
-                    polyline.outlinePaint.color = pathColor.toArgb()
-                    polyline.outlinePaint.strokeWidth = 10f
-                    polyline.isVisible = true
+                    try {
+                        polyline.setPoints(path)
+                        polyline.outlinePaint.color = pathColor.toArgb()
+                        polyline.outlinePaint.strokeWidth = 10f
+                        polyline.isVisible = true
+                    } catch (_: Exception) {
+                        polyline.isVisible = false
+                    }
                 } else {
                     polyline.isVisible = false
                 }
 
-                // Update accuracy circle
-                accuracyCircle.points = Polygon.pointsAsCircle(current, accuracyMeters.coerceAtLeast(15.0))
-                accuracyCircle.fillPaint.color = accentColor.copy(alpha = 0.25f).toArgb()
-                accuracyCircle.outlinePaint.color = accentColor.toArgb()
-                accuracyCircle.outlinePaint.strokeWidth = 3f
+                // Update accuracy circle safely
+                try {
+                    accuracyCircle.points = Polygon.pointsAsCircle(current, accuracyMeters.coerceAtLeast(15.0))
+                    accuracyCircle.fillPaint.color = accentColor.copy(alpha = 0.25f).toArgb()
+                    accuracyCircle.outlinePaint.color = accentColor.toArgb()
+                    accuracyCircle.outlinePaint.strokeWidth = 3f
+                    accuracyCircle.isVisible = true
+                } catch (_: Exception) {
+                    accuracyCircle.isVisible = false
+                }
 
                 // Update marker position
-                marker.position = current
-                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                try {
+                    marker.position = current
+                    marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                } catch (_: Exception) {}
 
                 // Only animate camera if moved more than MIN_MOVE_METERS
                 val last = lastAnimatedPoint

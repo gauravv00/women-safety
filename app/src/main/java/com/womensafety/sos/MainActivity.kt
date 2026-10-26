@@ -62,7 +62,7 @@ class MainActivity : ComponentActivity() {
                 runOnUiThread {
                     Toast.makeText(
                         this@MainActivity,
-                        "🚨 Shake detected! Broadcasting Emergency SOS...",
+                        "Shake detected! Broadcasting Emergency SOS...",
                         Toast.LENGTH_SHORT
                     ).show()
                 }

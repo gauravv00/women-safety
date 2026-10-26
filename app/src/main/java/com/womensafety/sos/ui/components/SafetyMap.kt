@@ -30,10 +30,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.MapsInitializer
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
@@ -88,9 +90,17 @@ fun SafetyMap(
     pathColor: Color = accentColor,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val hasGoogleMapsKey = BuildConfig.MAPS_API_KEY.isNotBlank()
-    
+
+    // Initialize MapsInitializer early to prevent CameraUpdateFactory NullPointerException
+    LaunchedEffect(Unit) {
+        try {
+            MapsInitializer.initialize(context)
+        } catch (_: Exception) {}
+    }
+
     // Default to Google Maps if API key is provided; otherwise fallback smoothly to OpenStreetMap
     var useGoogleMaps by remember { mutableStateOf(hasGoogleMapsKey) }
     var recenterTrigger by remember { mutableIntStateOf(0) }
@@ -129,15 +139,20 @@ fun SafetyMap(
     // Track whether camera has been initialized
     var hasCenteredInitially by remember { mutableStateOf(false) }
 
-    LaunchedEffect(current) {
-        if (!hasCenteredInitially && current.latitude != 0.0 && current.longitude != 0.0) {
+    LaunchedEffect(current, useGoogleMaps) {
+        if (!useGoogleMaps) return@LaunchedEffect
+        try {
+            if (!hasCenteredInitially && current.latitude != 0.0 && current.longitude != 0.0) {
+                cameraPositionState.position = CameraPosition.fromLatLngZoom(current, 16.5f)
+                hasCenteredInitially = true
+            } else if (hasCenteredInitially && !cameraPositionState.isMoving) {
+                cameraPositionState.animate(
+                    CameraUpdateFactory.newLatLng(current),
+                    durationMs = 600
+                )
+            }
+        } catch (_: Exception) {
             cameraPositionState.position = CameraPosition.fromLatLngZoom(current, 16.5f)
-            hasCenteredInitially = true
-        } else if (hasCenteredInitially && !cameraPositionState.isMoving) {
-            cameraPositionState.animate(
-                CameraUpdateFactory.newLatLng(current),
-                durationMs = 600
-            )
         }
     }
 
@@ -226,10 +241,14 @@ fun SafetyMap(
             onClick = {
                 if (useGoogleMaps) {
                     coroutineScope.launch {
-                        cameraPositionState.animate(
-                            CameraUpdateFactory.newLatLngZoom(current, 16.5f),
-                            durationMs = 500
-                        )
+                        try {
+                            cameraPositionState.animate(
+                                CameraUpdateFactory.newLatLngZoom(current, 16.5f),
+                                durationMs = 500
+                            )
+                        } catch (_: Exception) {
+                            cameraPositionState.position = CameraPosition.fromLatLngZoom(current, 16.5f)
+                        }
                     }
                 } else {
                     recenterTrigger++
