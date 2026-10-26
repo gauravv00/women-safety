@@ -4,6 +4,7 @@ import android.content.Context
 import android.location.Address
 import android.location.Geocoder
 import android.os.Build
+import androidx.collection.LruCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -11,6 +12,8 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 object LocationAddressHelper {
+
+    private val addressCache = LruCache<String, String>(60)
 
     suspend fun getAddressFromCoordinates(
         context: Context,
@@ -21,14 +24,22 @@ object LocationAddressHelper {
             return@withContext "Location unavailable"
         }
 
+        val cacheKey = String.format(Locale.US, "%.3f,%.3f", latitude, longitude)
+        val cached = addressCache.get(cacheKey)
+        if (cached != null) {
+            return@withContext cached
+        }
+
+        val fallback = String.format(Locale.US, "Lat: %.4f, Lng: %.4f", latitude, longitude)
+
         try {
             if (!Geocoder.isPresent()) {
-                return@withContext String.format(Locale.US, "Lat: %.4f, Lng: %.4f", latitude, longitude)
+                return@withContext fallback
             }
 
             val geocoder = Geocoder(context, Locale.getDefault())
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val resolved = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 suspendCoroutine { cont ->
                     geocoder.getFromLocation(latitude, longitude, 1, object : Geocoder.GeocodeListener {
                         override fun onGeocode(addresses: MutableList<Address>) {
@@ -37,7 +48,7 @@ object LocationAddressHelper {
                         }
 
                         override fun onError(errorMessage: String?) {
-                            cont.resume(String.format(Locale.US, "Lat: %.4f, Lng: %.4f", latitude, longitude))
+                            cont.resume(fallback)
                         }
                     })
                 }
@@ -47,8 +58,11 @@ object LocationAddressHelper {
                 val addr = addresses?.firstOrNull()
                 formatAddress(addr, latitude, longitude)
             }
-        } catch (e: Exception) {
-            String.format(Locale.US, "Lat: %.4f, Lng: %.4f", latitude, longitude)
+
+            addressCache.put(cacheKey, resolved)
+            resolved
+        } catch (_: Exception) {
+            fallback
         }
     }
 
@@ -68,7 +82,7 @@ object LocationAddressHelper {
         return if (parts.isNotEmpty()) {
             parts.joinToString(", ")
         } else {
-            address.getAddressLine(0) ?: String.format(Locale.US, "Lat: %.4f, Lng: %.4f", latitude, longitude)
+            String.format(Locale.US, "Lat: %.4f, Lng: %.4f", latitude, longitude)
         }
     }
 }

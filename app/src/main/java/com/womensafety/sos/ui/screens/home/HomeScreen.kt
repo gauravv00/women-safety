@@ -169,7 +169,7 @@ fun HomeScreen(
             AppTopBar(
                 isSosActive = isSosActive,
                 unreadNotificationCount = unreadNotifCount,
-                onNotificationClick = { isNotificationSideBarOpen = true }
+                onNotificationClick = onNavigateToNotifications
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)

@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 class LiveTrackingViewModel(
     private val emergencyRepository: EmergencyRepository = ServiceLocator.emergencyRepository,
@@ -45,6 +46,8 @@ class LiveTrackingViewModel(
     private var observeEmergencyJob: Job? = null
     private var locationUpdatesJob: Job? = null
     private var addressJob: Job? = null
+    private var lastGeocodedLat = 0.0
+    private var lastGeocodedLng = 0.0
 
     init {
         startLocationUpdates()
@@ -119,6 +122,17 @@ class LiveTrackingViewModel(
 
     fun resolveAddressForCoordinates(context: Context, lat: Double, lng: Double) {
         if (lat == 0.0 && lng == 0.0) return
+
+        // Skip redundant geocode requests if device hasn't moved >= 30m
+        val latDiff = abs(lat - lastGeocodedLat)
+        val lngDiff = abs(lng - lastGeocodedLng)
+        if (_resolvedAddress.value.isNotBlank() && latDiff < 0.0003 && lngDiff < 0.0003) {
+            return
+        }
+
+        lastGeocodedLat = lat
+        lastGeocodedLng = lng
+
         addressJob?.cancel()
         addressJob = viewModelScope.launch {
             val addr = LocationAddressHelper.getAddressFromCoordinates(context, lat, lng)
