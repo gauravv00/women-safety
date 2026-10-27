@@ -165,15 +165,28 @@ class LoginViewModel : ViewModel() {
         }
     }
 
+    fun formatPhoneNumber(input: String): String {
+        var cleaned = input.replace(" ", "").replace("-", "").replace("(", "").replace(")", "").trim()
+        while (cleaned.startsWith("++")) {
+            cleaned = cleaned.substring(1)
+        }
+        if (cleaned.startsWith("+91+91")) {
+            cleaned = cleaned.replace("+91+91", "+91")
+        }
+        return when {
+            cleaned.startsWith("+") -> cleaned
+            cleaned.length == 10 -> "+91$cleaned"
+            cleaned.startsWith("91") && cleaned.length == 12 -> "+$cleaned"
+            cleaned.startsWith("0") && cleaned.length == 11 -> "+91${cleaned.substring(1)}"
+            else -> "+91$cleaned"
+        }
+    }
+
     fun sendPhoneOtp(activity: Activity, isResend: Boolean = false) {
         val rawPhone = _phoneNumber.value.trim()
-        val formattedPhone = when {
-            rawPhone.startsWith("+") -> rawPhone.replace(" ", "").replace("-", "")
-            rawPhone.length == 10 -> "+91$rawPhone"
-            else -> "+91${rawPhone.replace(" ", "").replace("-", "")}"
-        }
+        val formattedPhone = formatPhoneNumber(rawPhone)
 
-        if (formattedPhone.length < 10) {
+        if (formattedPhone.length < 11) {
             _errorMessage.value = "Please enter a valid 10-digit mobile number"
             return
         }
@@ -189,7 +202,16 @@ class LoginViewModel : ViewModel() {
             override fun onVerificationFailed(e: FirebaseException) {
                 _isLoading.value = false
                 Log.e("LoginViewModel", "Phone verification failed", e)
-                _errorMessage.value = e.localizedMessage ?: "Phone verification failed. Please check the number."
+                val msg = e.localizedMessage ?: "Phone verification failed."
+                _errorMessage.value = when {
+                    msg.contains("CONFIGURATION_NOT_FOUND", ignoreCase = true) ->
+                        "Phone Auth is disabled in Firebase Console. Enable Phone provider under Authentication > Sign-in method."
+                    msg.contains("API_KEY_INVALID", ignoreCase = true) ->
+                        "Invalid Firebase API Key. Please replace app/google-services.json with your actual Firebase project file."
+                    msg.contains("App verification failed", ignoreCase = true) ->
+                        "App verification failed. Please add your debug SHA-1 fingerprint to Firebase Console > Project Settings."
+                    else -> msg
+                }
             }
 
             override fun onCodeSent(
