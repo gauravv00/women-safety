@@ -39,6 +39,17 @@ class SettingsViewModel(
     private val _pairRequestState = MutableStateFlow<PairRequestState>(PairRequestState.Idle)
     val pairRequestState: StateFlow<PairRequestState> = _pairRequestState.asStateFlow()
 
+    init {
+        // Sync user document whenever settings is accessed to keep pairingCode fresh in Firestore
+        viewModelScope.launch {
+            try {
+                ServiceLocator.authManager.syncUserDocument()
+            } catch (e: Exception) {
+                // Silently ignore
+            }
+        }
+    }
+
     fun setShakeToTrigger(enabled: Boolean) { prefsRepository.updateShakeToTrigger(enabled) }
 
     fun setLoudSiren(enabled: Boolean) { prefsRepository.updateLoudSiren(enabled) }
@@ -56,7 +67,16 @@ class SettingsViewModel(
         if (enabled) GuardianMonitorService.start(context) else GuardianMonitorService.stop(context)
     }
 
-    fun updateDisplayName(name: String) { prefsRepository.updateDisplayName(name) }
+    fun updateDisplayName(name: String) {
+        prefsRepository.updateDisplayName(name)
+        viewModelScope.launch {
+            try {
+                ServiceLocator.authManager.syncUserDocument(name)
+            } catch (e: Exception) {
+                // Silently ignore
+            }
+        }
+    }
 
     /** Sends a Firestore pair request to the ward identified by [pairingCode].
      *  Also stores the ward locally on success for GuardianMonitorService. */

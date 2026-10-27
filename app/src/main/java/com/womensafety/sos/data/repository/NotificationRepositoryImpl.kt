@@ -179,18 +179,20 @@ class NotificationRepositoryImpl(
                 Exception("Could not connect to the server. Please check your internet connection and try again.")
             )
 
-            // 1. Look up ward by pairingCode field in users collection
+            // 1. Look up ward by pairingCode field in users collection.
+            // Do NOT use limit(1) because multiple historical user documents can exist if the user re-authenticated.
+            // Pick the most recently active UID (highest lastSeen).
             val wardQuery = firestore.collection("users")
                 .whereEqualTo("pairingCode", wardPairingCode)
-                .limit(1)
                 .get()
                 .await()
 
             if (wardQuery.isEmpty) {
-                return Result.failure(Exception("No user found with pairing code: $wardPairingCode"))
+                return Result.failure(Exception("No user found with pairing code: $wardPairingCode. Please ensure the ward has opened the app."))
             }
 
-            val wardDoc = wardQuery.documents.first()
+            val wardDoc = wardQuery.documents.maxByOrNull { it.getLong("lastSeen") ?: 0L }
+                ?: wardQuery.documents.first()
             val wardUid = wardDoc.id
             if (wardUid == guardianUid) {
                 return Result.failure(Exception("You cannot pair with yourself."))
