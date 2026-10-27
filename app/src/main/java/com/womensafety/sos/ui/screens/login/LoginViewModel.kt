@@ -17,7 +17,6 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
-import com.womensafety.sos.R
 import com.womensafety.sos.di.ServiceLocator
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -82,10 +81,34 @@ class LoginViewModel : ViewModel() {
         _errorMessage.value = null
     }
 
+    fun goToPhoneInput() {
+        _errorMessage.value = null
+        _step.value = LoginStep.PHONE_INPUT
+    }
+
+    fun goToGoogleSignIn() {
+        _errorMessage.value = null
+        _step.value = LoginStep.GOOGLE_SIGN_IN
+    }
+
     fun changePhoneNumber() {
         _otpCode.value = ""
         _errorMessage.value = null
         _step.value = LoginStep.PHONE_INPUT
+    }
+
+    fun skipLogin(context: Context, onFinished: () -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                ServiceLocator.authManager.ensureAuthenticated()
+            } catch (e: Exception) {
+                Log.w("LoginViewModel", "Anonymous auth on skip: ${e.message}")
+            }
+            LoginPreferences.setLoginSkipped(context)
+            _isLoading.value = false
+            onFinished()
+        }
     }
 
     fun signInWithGoogle(activity: Activity) {
@@ -132,11 +155,10 @@ class LoginViewModel : ViewModel() {
                     _errorMessage.value = "Unexpected credential type returned by Google Sign-In"
                 }
             } catch (e: GetCredentialCancellationException) {
-                // User dismissed the bottom sheet
                 Log.d("LoginViewModel", "Google Sign-in cancelled by user")
             } catch (e: Exception) {
                 Log.e("LoginViewModel", "Google Sign-in failed", e)
-                _errorMessage.value = e.localizedMessage ?: "Google Sign-In failed. Please try again."
+                _errorMessage.value = e.localizedMessage ?: "Google Sign-In failed. Please try again or use Phone / OTP."
             } finally {
                 _isLoading.value = false
             }
@@ -152,7 +174,7 @@ class LoginViewModel : ViewModel() {
         }
 
         if (formattedPhone.length < 10) {
-            _errorMessage.value = "Please enter a valid phone number"
+            _errorMessage.value = "Please enter a valid 10-digit mobile number"
             return
         }
 
@@ -161,7 +183,7 @@ class LoginViewModel : ViewModel() {
 
         val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
             override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                linkPhoneCredential(credential)
+                linkOrSignInPhoneCredential(credential)
             }
 
             override fun onVerificationFailed(e: FirebaseException) {
@@ -222,29 +244,47 @@ class LoginViewModel : ViewModel() {
         _errorMessage.value = null
 
         val credential = PhoneAuthProvider.getCredential(vId, code)
-        linkPhoneCredential(credential)
+        linkOrSignInPhoneCredential(credential)
     }
 
-    private fun linkPhoneCredential(credential: PhoneAuthCredential) {
+    private fun linkOrSignInPhoneCredential(credential: PhoneAuthCredential) {
         val user = auth.currentUser
-        if (user == null) {
-            _isLoading.value = false
-            _errorMessage.value = "Session expired. Please sign in with Google again."
-            _step.value = LoginStep.GOOGLE_SIGN_IN
-            return
+        if (user != null && !user.isAnonymous) {
+            // Already signed in via Google, link phone number
+            user.linkWithCredential(credential)
+                .addOnSuccessListener {
+                    _isLoading.value = false
+                    _errorMessage.value = null
+                    _step.value = LoginStep.NAME_INPUT
+                }
+                .addOnFailureListener { e ->
+                    // If credential already tied to an existing account, sign into it directly
+                    auth.signInWithCredential(credential)
+                        .addOnSuccessListener {
+                            _isLoading.value = false
+                            _errorMessage.value = null
+                            _step.value = LoginStep.NAME_INPUT
+                        }
+                        .addOnFailureListener { e2 ->
+                            _isLoading.value = false
+                            Log.e("LoginViewModel", "Error with phone credential", e2)
+                            _errorMessage.value = e2.localizedMessage ?: "Invalid OTP or failed to verify phone number."
+                        }
+                }
+        } else {
+            // Direct standalone Phone & OTP Login
+            auth.signInWithCredential(credential)
+                .addOnSuccessListener {
+                    _isLoading.value = false
+                    _errorMessage.value = null
+                    _step.value = LoginStep.NAME_INPUT
+                }
+                .addOnFailureListener { e ->
+                    _isLoading.value = false
+                    Log.e("LoginViewModel", "Error signing in with phone credential", e)
+                    _errorMessage.value = e.localizedMessage ?: "Invalid OTP or failed to verify phone number."
+                }
         }
-
-        user.linkWithCredential(credential)
-            .addOnSuccessListener {
-                _isLoading.value = false
-                _errorMessage.value = null
-                _step.value = LoginStep.NAME_INPUT
-            }
-            .addOnFailureListener { e ->
-                _isLoading.value = false
-                Log.e("LoginViewModel", "Error linking phone credential", e)
-                _errorMessage.value = e.localizedMessage ?: "Invalid OTP or failed to link phone number."
-            }
     }
 
     fun completeLogin(context: Context, name: String, onFinished: () -> Unit) {
@@ -267,7 +307,7 @@ class LoginViewModel : ViewModel() {
                 } catch (e: Exception) {
                     Log.w("LoginViewModel", "Failed to sync user doc during completeLogin: ${e.message}")
                 }
-                // 3. Mark login completed in the dedicated SharedPreferences file
+                // 3. Mark login completed
                 LoginPreferences.setLoginCompleted(context, true)
                 _isLoading.value = false
                 onFinished()

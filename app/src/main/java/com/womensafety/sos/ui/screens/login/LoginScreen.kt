@@ -156,7 +156,7 @@ fun LoginScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    StepChip(number = "1", label = "Google", active = step == LoginStep.GOOGLE_SIGN_IN, completed = step != LoginStep.GOOGLE_SIGN_IN)
+                    StepChip(number = "1", label = "Sign In", active = step == LoginStep.GOOGLE_SIGN_IN, completed = step != LoginStep.GOOGLE_SIGN_IN)
                     StepDivider(completed = step != LoginStep.GOOGLE_SIGN_IN)
                     StepChip(number = "2", label = "Phone OTP", active = step == LoginStep.PHONE_INPUT || step == LoginStep.OTP_INPUT, completed = step == LoginStep.NAME_INPUT)
                     StepDivider(completed = step == LoginStep.NAME_INPUT)
@@ -203,6 +203,12 @@ fun LoginScreen(
                             isLoading = isLoading,
                             onSignInClick = {
                                 activity?.let { viewModel.signInWithGoogle(it) }
+                            },
+                            onPhoneSignInClick = {
+                                viewModel.goToPhoneInput()
+                            },
+                            onSkipClick = {
+                                viewModel.skipLogin(context, onLoginSuccess)
                             }
                         )
                     }
@@ -213,6 +219,9 @@ fun LoginScreen(
                             onPhoneNumberChange = { viewModel.setPhoneNumber(it) },
                             onSendOtpClick = {
                                 activity?.let { viewModel.sendPhoneOtp(it, isResend = false) }
+                            },
+                            onBackClick = {
+                                viewModel.goToGoogleSignIn()
                             }
                         )
                     }
@@ -310,7 +319,9 @@ private fun StepDivider(completed: Boolean) {
 @Composable
 private fun GoogleSignInStep(
     isLoading: Boolean,
-    onSignInClick: () -> Unit
+    onSignInClick: () -> Unit,
+    onPhoneSignInClick: () -> Unit,
+    onSkipClick: () -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
@@ -338,7 +349,7 @@ private fun GoogleSignInStep(
             )
 
             Text(
-                text = "Sign in with your Google account to securely register emergency broadcasting, live GPS synchronization, and trusted guardian links.",
+                text = "Sign in to securely register emergency broadcasting, live GPS synchronization, and trusted guardian links.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.LightGray,
                 textAlign = TextAlign.Center,
@@ -347,6 +358,7 @@ private fun GoogleSignInStep(
 
             Spacer(modifier = Modifier.height(4.dp))
 
+            // 1. Google Sign-In Button
             Button(
                 onClick = onSignInClick,
                 enabled = !isLoading,
@@ -388,6 +400,81 @@ private fun GoogleSignInStep(
                     }
                 }
             }
+
+            // Divider with "OR"
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(1.dp)
+                        .background(Color.DarkGray.copy(alpha = 0.6f))
+                )
+                Text(
+                    text = "OR",
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(1.dp)
+                        .background(Color.DarkGray.copy(alpha = 0.6f))
+                )
+            }
+
+            // 2. Direct Continue with Phone & OTP Button
+            Button(
+                onClick = onPhoneSignInClick,
+                enabled = !isLoading,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = DarkSurface,
+                    contentColor = Color.White
+                ),
+                border = androidx.compose.foundation.BorderStroke(1.dp, TrustBlue.copy(alpha = 0.7f)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Phone,
+                        contentDescription = null,
+                        tint = SafetyGreen,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Login through Phone & OTP",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = Color.White
+                    )
+                }
+            }
+
+            // 3. Skip for Now Button (Guest / Anonymous Mode)
+            TextButton(
+                onClick = onSkipClick,
+                enabled = !isLoading
+            ) {
+                Text(
+                    text = "Skip for Now (Anonymous Mode)",
+                    color = Color.Gray,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
     }
 }
@@ -397,7 +484,8 @@ private fun PhoneInputStep(
     phoneNumber: String,
     isLoading: Boolean,
     onPhoneNumberChange: (String) -> Unit,
-    onSendOtpClick: () -> Unit
+    onSendOtpClick: () -> Unit,
+    onBackClick: () -> Unit
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -484,6 +572,17 @@ private fun PhoneInputStep(
                         fontSize = 15.sp
                     )
                 }
+            }
+
+            TextButton(
+                onClick = onBackClick,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text(
+                    text = "Back to Sign-in options",
+                    color = Color.Gray,
+                    fontSize = 13.sp
+                )
             }
         }
     }
@@ -584,7 +683,7 @@ private fun OtpInputStep(
                     )
                 } else {
                     Text(
-                        text = "Verify OTP & Link Phone",
+                        text = "Verify OTP & Continue",
                         color = Color.Black,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp
