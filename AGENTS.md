@@ -43,6 +43,10 @@ No white backgrounds. Cards use `RoundedCornerShape(16.dp)`. Chips/badges use `R
 - [x] Phase 3 — Multi-emergency notification cards
 - [x] Phase 4 — Live Firestore → osmdroid tracking
 - [x] Phase 5 — Resolve flow + resolved-card final location
+- [x] Phase 6 — Google Maps + OpenStreetMap instant fallback dual-engine with 1-tap provider toggle
+- [x] Phase 7 — App-wide hardware Shake-to-SOS detection with g-force calibration & haptic feedback
+- [x] Phase 8 — Realistic Indian Fake Call escape dialer with localized presets & Text-to-Speech
+- [x] Phase 9 — UI/UX efficiency enhancements, reverse-geocoding LRU cache & stability safeguards
 - [x] Security rules (`firestore.rules`)
 - [ ] Offline persistence, SMS fallback, expired-code errors
 

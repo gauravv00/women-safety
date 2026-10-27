@@ -1,72 +1,106 @@
 # Project Map — Women Safety SOS
 
 ## Overview
-Native Android app written in Kotlin + Jetpack Compose (Material3), package `com.womensafety.sos`.
-Provides emergency SOS broadcasts, automated contact escalation, live location tracking, audio evidence recording, incident logging, and paired guardian device monitoring.
+Native Android app written in Kotlin + Jetpack Compose (Material 3), package `com.womensafety.sos`.
+Provides emergency SOS broadcasts, automated contact escalation, live dual-engine location tracking (Google Maps & OpenStreetMap), shake-to-SOS detection, ultra-realistic fake call escape dialer, audio evidence recording, incident logging, and real-time paired guardian device monitoring.
+
+---
 
 ## Architecture Layers
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    UI Layer (Jetpack Compose)               │
-│  HomeScreen │ LiveTrackingScreen │ Contacts │ Settings      │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ ViewModels
-┌──────────────────────────────▼──────────────────────────────┐
-│                    Domain Layer                             │
-│  SafetyRepository (Interface)                                │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ ServiceLocator DI
-┌──────────────────────────────▼──────────────────────────────┐
-│                    Data Layer                               │
-│  SafetyRepositoryImpl │ UserPreferencesRepository           │
-│  Room: AppDatabase (TrustedContact, IncidentLog, PairedWard)│
-│  Firebase: Realtime Database + Storage                      │
-└──────────────────────────────┬──────────────────────────────┘
-                               │
-┌──────────────────────────────▼──────────────────────────────┐
-│                    Background Services                      │
-│  EmergencyForegroundService │ GuardianMonitorService        │
-│  ShakeDetector │ AudioRecorderService                       │
-└─────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│                      UI Layer (Jetpack Compose)                        │
+│  HomeScreen │ LiveTrackingScreen │ FakeCallScreen │ Contacts │ Settings│
+│  SafetyMap (Google Maps / OpenStreetMap Dual Engine)                   │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ ViewModels
+┌───────────────────────────────────▼────────────────────────────────────┐
+│                         Domain Layer                                   │
+│  SafetyRepository │ EmergencyRepository │ PairingRepository            │
+│  NotificationRepository                                                │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ ServiceLocator DI
+┌───────────────────────────────────▼────────────────────────────────────┐
+│                          Data Layer                                    │
+│  Room DB (TrustedContact, IncidentLog, PairedWard)                     │
+│  UserPreferencesRepository (Encrypted / SharedPreferences)             │
+│  Firebase: Cloud Firestore (users, notifications, pairs, emergencies)  │
+│  Firebase Storage (audio evidence) │ Firebase Messaging (FCM)          │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│                      Background Services                               │
+│  EmergencyForegroundService │ SosTriggerHelper │ ShakeDetector         │
+│  AudioRecorderService │ AppFirebaseMessagingService                    │
+└────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
 
 ## Key Components & Packages
 
 ### 1. UI Layer (`com.womensafety.sos.ui`)
-- **`components.OsmMap`**: High-performance OpenStreetMap integration using `osmdroid-android:6.1.20`. Employs overlay diffing (reuses Marker, Polygon, Polyline across recompositions) and throttled `animateTo` (skips updates if moved < 5m) with dark tile color filtering.
-- **`components.AppTopBar`**: Edge-to-edge top bar with proper window insets.
-- **`components.EmergencyCallPanel`**: Modal bottom sheet with quick-dial buttons for Police (112), Women Helpline (1091), and prioritized trusted contacts.
-- **`screens.home.HomeScreen` & `HomeViewModel`**: SOS big button with long-press trigger, active emergency status badge, quick actions, and shake detector integration.
-- **`screens.map.LiveTrackingScreen` & `LiveTrackingViewModel`**: Live map rendering with debounced location updates, direct Emergency Call button, and live coordinate sharing.
-- **`screens.contacts.TrustedContactsScreen` & `TrustedContactsViewModel`**: Contact priority hierarchy management with native contact picker and phone number sanitization.
-- **`screens.settings.SettingsScreen` & `SettingsViewModel`**: Settings toggles (shake trigger, loud siren, auto-call delay, sequential escalation, battery-aware polling) and Guardian Device Pairing (view/copy/share safety code, add/remove monitored wards, toggle guardian monitoring).
+- **`components.SafetyMap`**: Dual-engine live tracking map:
+  - **Google Maps**: Hardware-accelerated vector map with high-contrast dark JSON styling, animated camera tracking, and custom marker/accuracy overlays.
+  - **OpenStreetMap (`OsmMap`)**: Instant, 100% free fallback powered by `osmdroid-android:6.1.20`. Activated automatically when no Google Maps API key is configured or upon user selection. Uses dark inverted color matrix and overlay diffing.
+  - **Interactive Provider Badge**: Floating chip allowing seamless 1-tap switching between Google Maps and OpenStreetMap.
+- **`components.SosButton`**: High-contrast, tactile 2-second hold-to-activate emergency SOS trigger with scale animation and haptic feedback.
+- **`components.EmergencyCallPanel`**: Modal bottom sheet with 1-tap emergency dial buttons for Police (112), Women Helpline (1091), and prioritized trusted contacts.
+- **`screens.home.HomeScreen` & `HomeViewModel`**: Main dashboard with active SOS status, quick action panels (Fake Call, Live GPS, Contacts, Helplines), and shake-trigger listener.
+- **`screens.map.LiveTrackingScreen` & `LiveTrackingViewModel`**: Live map tracking screen with device GPS telemetry, cached reverse-geocoding (LRU cache), accuracy radius indicator, and external map launcher.
+- **`screens.fakecall.FakeCallScreen` & `FakeCallViewModel`**: Realistic incoming fake call escape tool:
+  - Authentic Indian phone number presets (+91 98101 23456, +91 98202 34567, +91 98909 87654).
+  - Indian caller presets (Mom, Papa, Rohit Verma, Office HR, Auto / Cab Driver).
+  - Realistic cellular carrier subtitle ("Calling via Jio 5G" / "Calling via Airtel 5G").
+  - Simulated active call interface with live timer, dial pad, mute/speaker toggles, and Indian English Text-to-Speech voice script.
+- **`screens.contacts.TrustedContactsScreen` & `TrustedContactsViewModel`**: Contact priority hierarchy management with native contact picker, phone number sanitization, and SOS broadcast list.
+- **`screens.settings.SettingsScreen` & `SettingsViewModel`**: Settings toggles (Shake detection, loud siren, escalation delay) and Guardian Device Pairing (view/copy/share safety code, enter ward code, active guardian links).
+- **`screens.notifications.NotificationsScreen` & `NotificationViewModel`**: Real-time notification inbox displaying emergency alerts, pair requests (with Accept/Decline actions), and status updates.
 
-### 2. Services (`com.womensafety.sos.service`)
-- **`EmergencyForegroundService`**: Manages active emergency state:
-  - High-accuracy Fused Location Provider with throttled Realtime Database writes (≥10m or ≥10s).
-  - Location history capped at 500 points.
+---
+
+### 2. Services & Background Hardware (`com.womensafety.sos.service`)
+- **`SosTriggerHelper`**: Centralized, thread-safe dispatcher for initiating emergency workflows from any screen, background shake detector, or system event.
+- **`ShakeDetector`**: Precision hardware accelerometer detector:
+  - Vector acceleration analysis ($\sqrt{g_x^2 + g_y^2 + g_z^2} \ge 2.7g$).
+  - Debounced time window (minimum 1000ms cooldown) to prevent accidental pocket triggers.
+  - App-wide lifecycle integration in `MainActivity`.
+- **`EmergencyForegroundService`**: Sticky foreground service managing active emergencies:
+  - High-accuracy Fused Location Provider with throttled Firestore location updates.
   - Background audio evidence recording with Firebase Storage upload on resolution.
-  - Optional loud siren alarm.
-  - Auto-calling priority #1 contact with fallback to dialer.
-  - Realtime Database SOS broadcast to paired guardians (`guardians/{myPairingCode}`).
-- **`GuardianMonitorService`**: Long-running background/foreground monitor service:
-  - Attaches Firebase Realtime Database `ValueEventListener` to all paired wards.
-  - On `"ACTIVE"` emergency status, triggers high-priority alarm notification with vibration and sound.
-- **`ShakeDetector`**: Accelerometer-based shake detector with debounced trigger threshold.
-- **`AudioRecorderService`**: 3GP/AAC microphone audio recorder.
+  - Local loud siren alarm option.
+  - Direct SMS and phone call escalation to priority #1 contact.
+- **`AppFirebaseMessagingService`**: Firebase Cloud Messaging (FCM) service delivering heads-up high-priority emergency alerts and pairing notifications even when the app is killed.
+- **`NotificationHelper`**: Singleton notification manager configuring dedicated Android notification channels:
+  - `emergency_channel` (High importance, heads-up sound & vibration).
+  - `pairing_channel` (Default importance for pairing invites & updates).
+  - `tracking_channel` (Low importance ongoing foreground service notification).
+
+---
 
 ### 3. Data & Persistence (`com.womensafety.sos.data`)
-- **`local.AppDatabase`**: Room Database (version 2) with tables:
-  - `trusted_contacts`: Priority-ordered contact list.
-  - `incident_logs`: Historical & active emergency incidents.
-  - `paired_wards`: Monitored ward codes, names, coordinates, and status.
-- **`pref.UserPreferencesRepository`**: SharedPreferences wrapper with reactive `SafetySettings` StateFlow, unique 6-character safety pairing code generator (`SOS-XXXXXX`), and display name.
-- **`util.PhoneUtils`**: Phone number sanitizer and validator preserving E.164 country codes.
-- **`repository.SafetyRepositoryImpl`**: Single source of truth managing Room DB, Firebase Realtime Database (`incidents/` & `guardians/`), and Firebase Storage (`audio_evidence/`).
+- **`local.AppDatabase`**: Room Database (version 2) with SQLite tables:
+  - `trusted_contacts`: Priority-ordered contact list with names and phone numbers.
+  - `incident_logs`: Historical audit trail of emergency broadcasts, timestamps, and locations.
+  - `paired_wards`: Locally cached guardian/ward pairings.
+- **`pref.UserPreferencesRepository`**: Encrypted / SharedPreferences wrapper with reactive `SafetySettings` StateFlow, unique 6-character safety pairing code generator (`SOS-XXXXXX`), and user profile state.
+- **`location.LocationAddressHelper`**: Thread-safe reverse-geocoder with LRU memory caching (50 entries) to resolve GPS coordinates to Indian addresses without network overhead or UI stalls.
+- **`repository.EmergencyRepositoryImpl`**: Manages Firestore `emergencies/` documents, location points sub-collection, and client-side fan-out to paired guardian inboxes.
+- **`repository.PairingRepositoryImpl`**: Handles Firestore pairing codes, `pairRequests/` documents, duplicate checks, and bidirectional `pairs/` synchronization.
+- **`repository.NotificationRepositoryImpl`**: Real-time Firestore snapshot listener for `notifications/{uid}/items/` with read/delete/action mutations.
 
-## Guardian Pairing Protocol (Zero-Cost Stack)
-1. **Code Generation**: Primary device creates a unique code (e.g. `SOS-9X2K7B`) stored in `UserPreferencesRepository`.
-2. **Pairing**: Guardian device adds ward by entering the code and a display name into `SettingsScreen`.
-3. **Broadcasting**: When primary device triggers SOS, `EmergencyForegroundService` writes `{ "status": "ACTIVE", "latitude": lat, "longitude": lng, "wardName": name, "timestamp": timestamp }` to `guardians/{wardCode}` in Firebase Realtime Database.
-4. **Alerting**: Guardian device running `GuardianMonitorService` receives the update and immediately fires a heads-up emergency danger notification with sound and vibration.
-5. **Resolution**: On emergency cancellation, primary device writes `{ "status": "RESOLVED" }`, automatically silencing and clearing the emergency state.
+---
+
+## Zero-Cost Guardian Pairing & Notification Architecture
+1. **User Identity**: Devices sign in via Firebase Anonymous Authentication (`FirebaseAuthManager`), obtaining a stable `uid`.
+2. **Pairing Handshake**:
+   - Ward shares their 6-character code (e.g. `SOS-9X2K7B`).
+   - Guardian enters the code in `SettingsScreen`.
+   - A `pairRequests` record is generated, triggering a notification in the Ward's inbox.
+   - Ward taps **Accept**, committing a bidirectional record in `pairs/{wardUid}_{guardianUid}`.
+3. **Emergency Broadcast (Client-Side Fan-Out)**:
+   - When Ward triggers SOS, `EmergencyForegroundService` creates an emergency document in `emergencies/{emergencyId}`.
+   - The app reads all active guardians from `pairs` and writes emergency notification documents to `notifications/{guardianUid}/items/{notifId}`.
+   - Guardians receive instant real-time Firestore inbox updates while the app is active, and FCM push notifications when backgrounded or killed.
+4. **Resolution**:
+   - Tapping "Resolve SOS" sets emergency status to `RESOLVED`, timestamps the event, saves audio evidence, and silences all guardian devices.
