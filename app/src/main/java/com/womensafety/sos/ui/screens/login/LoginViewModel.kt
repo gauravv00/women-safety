@@ -158,7 +158,12 @@ class LoginViewModel : ViewModel() {
                 Log.d("LoginViewModel", "Google Sign-in cancelled by user")
             } catch (e: Exception) {
                 Log.e("LoginViewModel", "Google Sign-in failed", e)
-                _errorMessage.value = e.localizedMessage ?: "Google Sign-In failed. Please try again or use Phone / OTP."
+                val msg = e.localizedMessage ?: ""
+                _errorMessage.value = when {
+                    msg.contains("No credentials", ignoreCase = true) ->
+                        "No Google account found on device, or debug SHA-1 not yet saved in Firebase. Please add a Google account in phone Settings or add SHA-1 to Firebase."
+                    else -> msg.ifBlank { "Google Sign-In failed. Please try again or use Phone / OTP." }
+                }
             } finally {
                 _isLoading.value = false
             }
