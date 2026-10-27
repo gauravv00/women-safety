@@ -34,6 +34,12 @@ object ServiceLocator {
     @Volatile
     private var _emergencyRepository: EmergencyRepository? = null
 
+    @Volatile
+    private var _appContext: Context? = null
+
+    val appContext: Context?
+        get() = _appContext
+
     val repository: SafetyRepository
         get() = _repository ?: throw IllegalStateException("ServiceLocator not initialized. Call init(context) first.")
 
@@ -53,6 +59,7 @@ object ServiceLocator {
         get() = _emergencyRepository ?: throw IllegalStateException("ServiceLocator not initialized. Call init(context) first.")
 
     fun init(context: Context) {
+        _appContext = context.applicationContext
         if (_repository == null || _userPreferences == null || _locationTracker == null || _authManager == null || _notificationRepository == null || _emergencyRepository == null) {
             synchronized(this) {
                 val db = database ?: AppDatabase.getDatabase(context).also { database = it }

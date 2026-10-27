@@ -32,7 +32,7 @@ class AppFirebaseMessagingService : FirebaseMessagingService() {
         val type = data["type"] ?: "GENERIC"
         val refId = data["refId"] ?: data["emergencyId"] ?: ""
 
-        val notificationId = (System.currentTimeMillis() % 100000).toInt()
+        val notificationId = if (refId.isNotBlank()) refId.hashCode() else (System.currentTimeMillis() % 100000).toInt()
 
         when (type) {
             "EMERGENCY" -> {
@@ -42,6 +42,16 @@ class AppFirebaseMessagingService : FirebaseMessagingService() {
                     title = title,
                     body = body,
                     emergencyId = refId
+                )
+            }
+            "RESOLVED" -> {
+                // Instantly dismiss any ringing emergency alarm notification
+                NotificationHelper.cancelEmergencyNotification(applicationContext, refId)
+                NotificationHelper.showPairingNotification(
+                    context = applicationContext,
+                    notificationId = ("resolved_$refId").hashCode(),
+                    title = title,
+                    body = body
                 )
             }
             "PAIR_REQUEST", "PAIR_ACCEPTED", "PAIR_REJECTED" -> {

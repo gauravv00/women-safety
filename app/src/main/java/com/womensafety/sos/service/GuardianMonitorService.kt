@@ -161,6 +161,9 @@ class GuardianMonitorService : Service() {
 
                 if (status.equals("ACTIVE", ignoreCase = true)) {
                     triggerDangerAlertNotification(ward.wardPairingCode, wardName, lat, lng)
+                } else if (status.equals("RESOLVED", ignoreCase = true) || status.equals("SAFE", ignoreCase = true)) {
+                    val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    manager.cancel(ward.wardPairingCode.hashCode())
                 }
             }
 
@@ -196,6 +199,7 @@ class GuardianMonitorService : Service() {
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setOnlyAlertOnce(true)
             .setSound(soundUri)
             .setVibrate(longArrayOf(0, 500, 200, 500, 200, 500))
             .build()

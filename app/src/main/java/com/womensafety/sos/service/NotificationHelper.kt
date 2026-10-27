@@ -77,6 +77,8 @@ object NotificationHelper {
         body: String,
         emergencyId: String
     ) {
+        val targetId = if (emergencyId.isNotBlank()) emergencyId.hashCode() else notificationId
+
         val intent = Intent(context, MainActivity::class.java).apply {
             action = Intent.ACTION_VIEW
             data = Uri.parse("womensafety://tracking/$emergencyId")
@@ -85,7 +87,7 @@ object NotificationHelper {
 
         val pendingIntent = PendingIntent.getActivity(
             context,
-            notificationId,
+            targetId,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -100,6 +102,7 @@ object NotificationHelper {
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setOnlyAlertOnce(true) // Prevent ringing on every subsequent location update
             .setAutoCancel(true)
             .setSound(soundUri)
             .setVibrate(longArrayOf(0, 500, 200, 500, 200, 500))
@@ -107,7 +110,19 @@ object NotificationHelper {
             .build()
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(notificationId, notification)
+        manager.notify(targetId, notification)
+    }
+
+    fun cancelEmergencyNotification(context: Context, emergencyId: String? = null) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (!emergencyId.isNullOrBlank()) {
+            manager.cancel(emergencyId.hashCode())
+        }
+    }
+
+    fun cancelAllAlerts(context: Context) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancelAll()
     }
 
     fun showPairingNotification(

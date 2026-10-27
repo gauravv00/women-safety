@@ -1,6 +1,7 @@
 package com.womensafety.sos.ui.screens.map
 
 import android.content.Context
+import android.content.Intent
 import android.location.Location
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -11,7 +12,9 @@ import com.womensafety.sos.data.location.LocationTracker
 import com.womensafety.sos.data.model.EmergencyEvent
 import com.womensafety.sos.di.ServiceLocator
 import com.womensafety.sos.domain.repository.EmergencyRepository
+import com.womensafety.sos.service.EmergencyForegroundService
 import com.womensafety.sos.service.EmergencySosService
+import com.womensafety.sos.service.NotificationHelper
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -80,6 +83,12 @@ class LiveTrackingViewModel(
             observeEmergencyJob = viewModelScope.launch {
                 emergencyRepository.observeEmergency(emergencyId).collect { event ->
                     _emergency.value = event
+                    if (event != null && event.status.equals("RESOLVED", ignoreCase = true)) {
+                        // Dismiss ongoing emergency alert on guardian device
+                        ServiceLocator.appContext?.let { ctx ->
+                            NotificationHelper.cancelEmergencyNotification(ctx, event.id)
+                        }
+                    }
                 }
             }
         } else {
@@ -113,6 +122,31 @@ class LiveTrackingViewModel(
             try {
                 emergencyRepository.resolveEmergency(emergencyId)
                 EmergencySosService.stop(context)
+
+                // Stop EmergencyForegroundService (stops siren, GPS updates, and RTDB broadcast)
+                val serviceIntent = Intent(context, EmergencyForegroundService::class.java).apply {
+                    action = EmergencyForegroundService.ACTION_STOP_SOS
+                }
+                context.startService(serviceIntent)
+
+                // Resolve Room incident and RTDB status
+                val activeIncident = ServiceLocator.repository.getActiveIncidentSync()
+                if (activeIncident != null) {
+                    ServiceLocator.repository.resolveIncident(activeIncident.id)
+                    val settings = ServiceLocator.userPreferences.settings.value
+                    ServiceLocator.repository.broadcastSosToGuardians(
+                        myPairingCode = settings.myPairingCode,
+                        myName = settings.displayName,
+                        incidentId = activeIncident.id,
+                        lat = activeIncident.latitude,
+                        lng = activeIncident.longitude,
+                        status = "RESOLVED"
+                    )
+                }
+
+                // Dismiss alarm notification
+                NotificationHelper.cancelEmergencyNotification(context, emergencyId)
+
                 onComplete()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to resolve emergency $emergencyId", e)

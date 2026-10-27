@@ -3,8 +3,10 @@ package com.womensafety.sos.ui.screens.notifications
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.womensafety.sos.data.model.NotificationItem
+import com.womensafety.sos.data.model.NotificationType
 import com.womensafety.sos.di.ServiceLocator
 import com.womensafety.sos.domain.repository.NotificationRepository
+import com.womensafety.sos.service.NotificationHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +30,12 @@ class NotificationViewModel(
 
     val uiState: StateFlow<NotificationsUiState> = repository.getNotifications()
         .map { items ->
+            // If any notifications are marked RESOLVED, automatically dismiss ringing emergency alert
+            items.filter { it.type == NotificationType.RESOLVED }.forEach { resolvedItem ->
+                ServiceLocator.appContext?.let { ctx ->
+                    NotificationHelper.cancelEmergencyNotification(ctx, resolvedItem.refId)
+                }
+            }
             NotificationsUiState.Success(items)
         }
         .stateIn(
