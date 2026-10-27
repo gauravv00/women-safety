@@ -18,6 +18,12 @@ import com.womensafety.sos.service.EmergencyForegroundService
 import com.womensafety.sos.service.GuardianMonitorService
 import com.womensafety.sos.service.ShakeDetector
 import com.womensafety.sos.service.SosTriggerHelper
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.womensafety.sos.ui.screens.login.LoginPreferences
+import com.womensafety.sos.ui.screens.login.LoginScreen
 import com.womensafety.sos.ui.navigation.MainNavGraph
 import com.womensafety.sos.ui.theme.WomenSafetyTheme
 
@@ -48,7 +54,19 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainNavGraph()
+                    var loginCompleted by remember {
+                        mutableStateOf(LoginPreferences.isLoginCompleted(this@MainActivity))
+                    }
+
+                    if (!loginCompleted) {
+                        LoginScreen(
+                            onLoginSuccess = {
+                                loginCompleted = true
+                            }
+                        )
+                    } else {
+                        MainNavGraph()
+                    }
                 }
             }
         }

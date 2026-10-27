@@ -82,6 +82,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Phone
 import com.womensafety.sos.data.entity.PairedWard
 import com.womensafety.sos.data.util.PhoneUtils
 import com.womensafety.sos.ui.components.AppTopBar
@@ -189,39 +193,142 @@ fun SettingsScreen(
                     color = TrustBlue
                 )
 
-                // User Display Name Card
+                // Account & Profile Information Card
+                val currentUser = remember { FirebaseAuth.getInstance().currentUser }
+                val userEmail = currentUser?.email
+                val userPhone = currentUser?.phoneNumber
+
                 Card(
                     colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Your Name (Seen by Guardians)",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(TrustBlue.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AccountCircle,
+                                        contentDescription = null,
+                                        tint = TrustBlue,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "Account Profile",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = if (currentUser != null && !currentUser.isAnonymous) "Verified Account" else "Guest Account",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (currentUser != null && !currentUser.isAnonymous) SafetyGreen else Color.Gray,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+
+                            IconButton(onClick = {
+                                inputDisplayName = settings.displayName
+                                showEditNameDialog = true
+                            }) {
+                                Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit Name", tint = TrustBlue)
+                            }
+                        }
+
+                        // Display Name
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = Color.Gray,
+                                modifier = Modifier.size(16.dp)
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = settings.displayName.ifBlank { "My Device" },
+                                text = "Name: ",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray
+                            )
+                            Text(
+                                text = settings.displayName.ifBlank { currentUser?.displayName ?: "User" },
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = SafetyGreen,
+                                color = Color.White,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
-                        IconButton(onClick = {
-                            inputDisplayName = settings.displayName
-                            showEditNameDialog = true
-                        }) {
-                            Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit Name", tint = TrustBlue)
+
+                        // Google Email (if present)
+                        if (!userEmail.isNullOrBlank()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Email,
+                                    contentDescription = null,
+                                    tint = Color.Gray,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Email: ",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.Gray
+                                )
+                                Text(
+                                    text = userEmail,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.LightGray
+                                )
+                            }
+                        }
+
+                        // Verified Phone Number (if present)
+                        if (!userPhone.isNullOrBlank()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Phone,
+                                    contentDescription = null,
+                                    tint = Color.Gray,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Phone: ",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.Gray
+                                )
+                                Text(
+                                    text = userPhone,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = SafetyGreen,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                 }
