@@ -93,7 +93,12 @@ class LoginViewModel : ViewModel() {
             _isLoading.value = true
             _errorMessage.value = null
             try {
-                val serverClientId = activity.getString(R.string.default_web_client_id)
+                val resId = activity.resources.getIdentifier("default_web_client_id", "string", activity.packageName)
+                if (resId == 0) {
+                    _errorMessage.value = "Google Sign-In is not configured in Firebase. Please use Phone / OTP login or Skip."
+                    return@launch
+                }
+                val serverClientId = activity.getString(resId)
                 val credentialManager = CredentialManager.create(activity)
 
                 val googleIdOption = GetGoogleIdOption.Builder()
