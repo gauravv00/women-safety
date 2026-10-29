@@ -123,6 +123,8 @@ class MainActivity : ComponentActivity() {
                 shakeDetector?.reset()
                 sensorManager?.registerListener(shakeDetector, it, SensorManager.SENSOR_DELAY_UI)
             }
+        } else {
+            shakeDetector?.let { sensorManager?.unregisterListener(it) }
         }
     }
 

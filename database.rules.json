@@ -1,0 +1,17 @@
+{
+  "rules": {
+    "guardians": {
+      "$pairingCode": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "incidents": {
+      "$incidentId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    }
+  }
+}
+

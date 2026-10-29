@@ -17,6 +17,7 @@ import androidx.core.app.NotificationCompat
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
+import com.womensafety.sos.data.firebase.FirebaseDatabaseHelper
 import com.google.firebase.database.ValueEventListener
 import com.womensafety.sos.MainActivity
 import com.womensafety.sos.data.entity.PairedWard
@@ -122,7 +123,7 @@ class GuardianMonitorService : Service() {
         for (code in removedCodes) {
             val listener = activeListeners.remove(code)
             if (listener != null) {
-                FirebaseDatabase.getInstance().getReference("guardians").child(code)
+                FirebaseDatabaseHelper.getInstance().getReference("guardians").child(code)
                     .removeEventListener(listener)
             }
         }
@@ -136,7 +137,7 @@ class GuardianMonitorService : Service() {
     }
 
     private fun attachWardListener(ward: PairedWard) {
-        val ref = FirebaseDatabase.getInstance().getReference("guardians").child(ward.wardPairingCode)
+        val ref = FirebaseDatabaseHelper.getInstance().getReference("guardians").child(ward.wardPairingCode)
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (!snapshot.exists()) return
@@ -219,7 +220,7 @@ class GuardianMonitorService : Service() {
         _isMonitoring.value = false
         // Remove all listeners
         for ((code, listener) in activeListeners) {
-            FirebaseDatabase.getInstance().getReference("guardians").child(code)
+            FirebaseDatabaseHelper.getInstance().getReference("guardians").child(code)
                 .removeEventListener(listener)
         }
         activeListeners.clear()

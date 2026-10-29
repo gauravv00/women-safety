@@ -5,6 +5,7 @@ import android.net.Uri
 import android.telephony.SmsManager
 import android.util.Log
 import com.google.firebase.database.FirebaseDatabase
+import com.womensafety.sos.data.firebase.FirebaseDatabaseHelper
 import com.google.firebase.storage.FirebaseStorage
 import com.womensafety.sos.data.entity.IncidentLog
 import com.womensafety.sos.data.entity.PairedWard
@@ -80,7 +81,7 @@ class SafetyRepositoryImpl(
     override suspend fun resolveIncident(id: Long): Unit = withContext(Dispatchers.IO) {
         incidentDao.resolveIncident(id)
         try {
-            val db = FirebaseDatabase.getInstance().getReference("incidents").child(id.toString())
+            val db = FirebaseDatabaseHelper.getInstance().getReference("incidents").child(id.toString())
             db.child("status").setValue("RESOLVED")
             db.child("resolvedAt").setValue(System.currentTimeMillis())
         } catch (e: Exception) {
@@ -97,7 +98,7 @@ class SafetyRepositoryImpl(
 
     override suspend fun syncIncidentToCloud(incident: IncidentLog, currentLat: Double, currentLng: Double): Unit = withContext(Dispatchers.IO) {
         try {
-            val ref = FirebaseDatabase.getInstance().getReference("incidents").child(incident.id.toString())
+            val ref = FirebaseDatabaseHelper.getInstance().getReference("incidents").child(incident.id.toString())
             val map = mapOf(
                 "incidentId" to incident.id,
                 "timestamp" to incident.timestamp,
@@ -123,7 +124,7 @@ class SafetyRepositoryImpl(
             val downloadUrl = storageRef.downloadUrl.await().toString()
             incidentDao.updateAudioCloudUrl(incidentId, downloadUrl)
 
-            val db = FirebaseDatabase.getInstance().getReference("incidents").child(incidentId.toString())
+            val db = FirebaseDatabaseHelper.getInstance().getReference("incidents").child(incidentId.toString())
             db.child("audioCloudUrl").setValue(downloadUrl)
 
             // Sync audio URL to active Firestore emergency doc for live guardian playback
@@ -233,7 +234,7 @@ class SafetyRepositoryImpl(
     ): Unit = withContext(Dispatchers.IO) {
         if (myPairingCode.isBlank()) return@withContext
         try {
-            val ref = FirebaseDatabase.getInstance().getReference("guardians").child(myPairingCode)
+            val ref = FirebaseDatabaseHelper.getInstance().getReference("guardians").child(myPairingCode)
             val data = mapOf(
                 "pairingCode" to myPairingCode,
                 "wardName" to myName,
