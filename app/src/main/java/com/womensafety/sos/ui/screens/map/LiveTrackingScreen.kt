@@ -33,6 +33,11 @@ import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.runtime.DisposableEffect
+import android.util.Log
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -168,6 +173,16 @@ fun LiveTrackingScreen(
     }
 
     val isEmergencyActive = emergency?.status == "ACTIVE"
+    var isAudioPlaying by remember { mutableStateOf(false) }
+    var audioPlayer: android.media.MediaPlayer? by remember { mutableStateOf(null) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            audioPlayer?.stop()
+            audioPlayer?.release()
+            audioPlayer = null
+        }
+    }
     val isWardUser = emergency != null && emergency?.wardUid == viewModel.currentUserId
     val accentColor = when {
         emergency != null && isEmergencyActive -> AlertRed
@@ -242,8 +257,11 @@ fun LiveTrackingScreen(
                 }
             }
 
-            // Top overlay: multiple active emergencies selector (if > 1)
-            if (activeEmergencies.size > 1) {
+            // Top overlay: multiple active emergencies selector (deduplicated by wardUid / wardName)
+            val distinctEmergencies = remember(activeEmergencies) {
+                activeEmergencies.distinctBy { it.wardUid.ifBlank { it.wardName } }
+            }
+            if (distinctEmergencies.size > 1) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -252,7 +270,7 @@ fun LiveTrackingScreen(
                         .align(Alignment.TopCenter),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    activeEmergencies.forEach { em ->
+                    distinctEmergencies.forEach { em ->
                         val isSelected = emergency?.id == em.id
                         FilterChip(
                             selected = isSelected,
@@ -429,6 +447,91 @@ fun LiveTrackingScreen(
                                 color = JhumkaTextSecondary,
                                 lineHeight = 13.sp
                             )
+                        }
+                    }
+
+                    // Audio Evidence Player (if ward recorded audio during emergency)
+                    val audioUrl = emergency?.audioUrl
+                    if (!audioUrl.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(JhumkaPinkContainer.copy(alpha = 0.5f))
+                                .border(1.dp, JhumkaBorder, RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Icon(
+                                    imageVector = Icons.Default.Mic,
+                                    contentDescription = null,
+                                    tint = JhumkaPinkPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = "Ward Audio Evidence",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = JhumkaTextPrimary
+                                    )
+                                    Text(
+                                        text = if (isAudioPlaying) "Playing live audio..." else "Tap to play recorded audio",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = JhumkaTextSecondary
+                                    )
+                                }
+                            }
+                            IconButton(
+                                onClick = {
+                                    if (isAudioPlaying) {
+                                        audioPlayer?.stop()
+                                        audioPlayer?.release()
+                                        audioPlayer = null
+                                        isAudioPlaying = false
+                                    } else {
+                                        try {
+                                            val player = android.media.MediaPlayer().apply {
+                                                setAudioAttributes(
+                                                    android.media.AudioAttributes.Builder()
+                                                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                                                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                                                        .build()
+                                                )
+                                                setDataSource(audioUrl)
+                                                setOnPreparedListener {
+                                                    start()
+                                                    isAudioPlaying = true
+                                                }
+                                                setOnCompletionListener {
+                                                    isAudioPlaying = false
+                                                    release()
+                                                    audioPlayer = null
+                                                }
+                                                prepareAsync()
+                                            }
+                                            audioPlayer = player
+                                        } catch (e: Exception) {
+                                            Log.e("LiveTracking", "Error playing audio: ${e.message}")
+                                        }
+                                    }
+                                },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(JhumkaPinkPrimary)
+                            ) {
+                                Icon(
+                                    imageVector = if (isAudioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (isAudioPlaying) "Pause" else "Play",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
 

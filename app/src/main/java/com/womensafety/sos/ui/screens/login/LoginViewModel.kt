@@ -295,12 +295,12 @@ class LoginViewModel : ViewModel() {
 
     fun sendPhoneOtp(activity: Activity, isResend: Boolean = false) {
         val rawPhone = _phoneNumber.value.trim()
-        val formattedPhone = formatPhoneNumber(rawPhone)
-
-        if (formattedPhone.length < 11) {
-            _errorMessage.value = "Please enter a valid 10-digit mobile number"
+        val digits = rawPhone.filter { it.isDigit() }
+        if (digits.length != 10 && !(digits.startsWith("91") && digits.length == 12)) {
+            _errorMessage.value = "Please enter an exact 10-digit mobile number"
             return
         }
+        val formattedPhone = formatPhoneNumber(rawPhone)
 
         _isLoading.value = true
         _errorMessage.value = null

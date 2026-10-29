@@ -408,7 +408,10 @@ fun NavHostContainer(
             )
         }
 
-        composable(Screen.Map.route) {
+        composable(
+            route = Screen.Map.route,
+            deepLinks = listOf(navDeepLink { uriPattern = "womensafety://tracking" })
+        ) {
             LiveTrackingScreen(
                 onBackClick = {
                     if (navController.previousBackStackEntry != null) {

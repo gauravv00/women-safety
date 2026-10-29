@@ -125,6 +125,36 @@ class SafetyRepositoryImpl(
 
             val db = FirebaseDatabase.getInstance().getReference("incidents").child(incidentId.toString())
             db.child("audioCloudUrl").setValue(downloadUrl)
+
+            // Sync audio URL to active Firestore emergency doc for live guardian playback
+            val activeSessionId = com.womensafety.sos.service.EmergencyForegroundService.activeEmergencySessionId
+            if (activeSessionId.isNotBlank()) {
+                try {
+                    com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                        .collection("emergencies")
+                        .document(activeSessionId)
+                        .update("audioUrl", downloadUrl)
+                        .await()
+                    Log.d(TAG, "Audio evidence synced to Firestore emergencies/$activeSessionId")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed syncing audio to Firestore emergencies: ${e.message}")
+                }
+            }
+
+            // Sync audio URL to RTDB guardians child
+            try {
+                val sharedPrefs = context.getSharedPreferences("women_safety_prefs", Context.MODE_PRIVATE)
+                val myCode = sharedPrefs.getString("my_pairing_code", "") ?: ""
+                if (myCode.isNotBlank()) {
+                    FirebaseDatabase.getInstance()
+                        .getReference("guardians")
+                        .child(myCode)
+                        .child("audioCloudUrl")
+                        .setValue(downloadUrl)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed syncing audio to RTDB guardians: ${e.message}")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed uploading audio evidence to cloud: ${e.localizedMessage}")
         }

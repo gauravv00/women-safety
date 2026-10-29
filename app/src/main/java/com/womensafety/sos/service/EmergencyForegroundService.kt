@@ -68,6 +68,9 @@ class EmergencyForegroundService : Service() {
 
         private val _isServiceRunning = MutableStateFlow(false)
         val isServiceRunning: StateFlow<Boolean> = _isServiceRunning.asStateFlow()
+
+        @Volatile
+        var activeEmergencySessionId: String = ""
     }
 
     override fun onCreate() {

@@ -25,6 +25,22 @@ class EmergencyRepositoryImpl(
             val wardUid = authManager.ensureAuthenticated()
             if (wardUid.isBlank()) return Result.failure(Exception("Not authenticated"))
 
+            val batch = firestore.batch()
+
+            // Resolve any previous active emergencies for this ward so guardian sees only one current session
+            try {
+                val previousActive = firestore.collection("emergencies")
+                    .whereEqualTo("wardUid", wardUid)
+                    .whereEqualTo("status", "ACTIVE")
+                    .get()
+                    .await()
+                for (doc in previousActive.documents) {
+                    batch.update(doc.reference, mapOf("status" to "RESOLVED", "resolvedAt" to System.currentTimeMillis()))
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed resolving prior active emergencies: ${e.message}")
+            }
+
             val emergencyId = UUID.randomUUID().toString()
             val event = EmergencyEvent(
                 id = emergencyId,
@@ -34,7 +50,6 @@ class EmergencyRepositoryImpl(
                 startedAt = System.currentTimeMillis()
             )
 
-            val batch = firestore.batch()
             val emergencyRef = firestore.collection("emergencies").document(emergencyId)
             batch.set(emergencyRef, event.toMap())
 
@@ -93,6 +108,19 @@ class EmergencyRepositoryImpl(
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to update location for $emergencyId", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateEmergencyAudio(emergencyId: String, audioUrl: String): Result<Unit> {
+        return try {
+            if (emergencyId.isBlank() || audioUrl.isBlank()) return Result.failure(Exception("Invalid arguments"))
+            firestore.collection("emergencies").document(emergencyId)
+                .update("audioUrl", audioUrl)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update audioUrl in emergency $emergencyId", e)
             Result.failure(e)
         }
     }
@@ -208,7 +236,10 @@ class EmergencyRepositoryImpl(
                         val events = emSnapshot?.documents?.mapNotNull { doc ->
                             doc.data?.let { EmergencyEvent.fromMap(doc.id, it) }
                         } ?: emptyList()
-                        trySend(events)
+                        // Deduplicate by wardUid: show only the single latest active emergency per ward
+                        val deduplicated = events.groupBy { it.wardUid }
+                            .mapNotNull { (_, wardEvents) -> wardEvents.maxByOrNull { it.startedAt } }
+                        trySend(deduplicated)
                     }
             }
 

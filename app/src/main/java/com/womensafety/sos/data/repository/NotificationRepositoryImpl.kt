@@ -130,6 +130,20 @@ class NotificationRepositoryImpl(
                     "createdAt" to System.currentTimeMillis()
                 )
                 batch.set(pairRef, pairData)
+
+                // Ensure RTDB status for this ward is reset to SAFE so the guardian doesn't receive a stale alarm
+                try {
+                    val myCode = com.womensafety.sos.di.ServiceLocator.userPreferences.settings.value.myPairingCode
+                    if (myCode.isNotBlank()) {
+                        com.google.firebase.database.FirebaseDatabase.getInstance()
+                            .getReference("guardians")
+                            .child(myCode)
+                            .child("status")
+                            .setValue("SAFE")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed resetting ward RTDB status on pair accept: ${e.message}")
+                }
             }
 
             // 3. Write feedback notification for Guardian

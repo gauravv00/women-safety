@@ -128,8 +128,8 @@ fun TrustedContactsScreen(
     // Relationship presets
     val relationChips = listOf("Family", "Parent", "Partner", "Friend", "Neighbor", "Colleague")
 
-    // Validation
-    val isPhoneValid = remember(inputPhone) { PhoneUtils.isValidPhoneNumber(inputPhone) }
+    // Validation: enforce exactly 10-digit phone number
+    val isPhoneValid = remember(inputPhone) { inputPhone.filter { it.isDigit() }.length == 10 }
     val isNameValid = remember(inputName) { inputName.trim().length >= 2 }
 
     // Scalable, crash-proof contact import callback
@@ -419,20 +419,19 @@ fun TrustedContactsScreen(
                                 modifier = Modifier.fillMaxWidth()
                             )
 
-                            // Phone Number Input with Real-time Validation & Filtering
+                            // Phone Number Input with Strict 10-digit Validation & Filtering
                             OutlinedTextField(
                                 value = inputPhone,
                                 onValueChange = { raw ->
-                                    val filtered = raw.filter { it.isDigit() || it == '+' || it == '-' || it == ' ' || it == '(' || it == ')' }
-                                    if (filtered.length <= 18) {
-                                        inputPhone = filtered
-                                    }
+                                    val digits = raw.filter { it.isDigit() }.take(10)
+                                    inputPhone = digits
                                 },
-                                label = { Text("Phone Number *") },
-                                placeholder = { Text("+91 98765 43210 or 10-digit number", color = Color.DarkGray) },
+                                label = { Text("10-Digit Mobile Number *") },
+                                placeholder = { Text("9876543210", color = Color.DarkGray) },
+                                prefix = { Text("+91 ", color = JhumkaPinkPrimary, fontWeight = FontWeight.Bold) },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Phone,
+                                    keyboardType = KeyboardType.Number,
                                     imeAction = ImeAction.Next
                                 ),
                                 isError = attemptedSubmit && !isPhoneValid,
@@ -447,7 +446,7 @@ fun TrustedContactsScreen(
                                                     modifier = Modifier.size(14.dp)
                                                 )
                                                 Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Valid phone format", color = SafetyGreen)
+                                                Text("Valid 10-digit number", color = SafetyGreen)
                                             }
                                         } else {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -458,11 +457,11 @@ fun TrustedContactsScreen(
                                                     modifier = Modifier.size(14.dp)
                                                 )
                                                 Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Enter a valid 7-15 digit phone number", color = AlertRed)
+                                                Text("Must be exactly 10 digits (${inputPhone.length}/10)", color = AlertRed)
                                             }
                                         }
                                     } else if (attemptedSubmit) {
-                                        Text("Phone number is required", color = AlertRed)
+                                        Text("10-digit mobile number is required", color = AlertRed)
                                     }
                                 },
                                 leadingIcon = {

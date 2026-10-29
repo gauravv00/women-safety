@@ -869,12 +869,16 @@ private fun PhoneInputStep(
 
             OutlinedTextField(
                 value = phoneNumber,
-                onValueChange = onPhoneNumberChange,
-                label = { Text("Phone Number") },
-                placeholder = { Text("+91 9876543210") },
+                onValueChange = { raw ->
+                    val digits = raw.filter { it.isDigit() }.take(10)
+                    onPhoneNumberChange(digits)
+                },
+                label = { Text("10-Digit Mobile Number") },
+                placeholder = { Text("9876543210") },
+                prefix = { Text("+91 ", color = JhumkaPinkPrimary, fontWeight = FontWeight.Bold) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Phone,
+                    keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Done
                 ),
                 keyboardActions = KeyboardActions(
@@ -896,7 +900,7 @@ private fun PhoneInputStep(
 
             Button(
                 onClick = onSendOtpClick,
-                enabled = !isLoading && phoneNumber.trim().length >= 8,
+                enabled = !isLoading && phoneNumber.filter { it.isDigit() }.length == 10,
                 colors = ButtonDefaults.buttonColors(containerColor = JhumkaPinkPrimary),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier

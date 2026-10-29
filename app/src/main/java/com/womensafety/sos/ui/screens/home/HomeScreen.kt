@@ -40,6 +40,8 @@ import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -122,6 +124,7 @@ fun HomeScreen(
     val unreadNotifCount by notificationViewModel.unreadCount.collectAsState()
     val emergencyId by emergencyViewModel.emergencyId.collectAsState()
     val isEmergencyActive by emergencyViewModel.isEmergencyActive.collectAsState()
+    val activeWardEmergencies by emergencyViewModel.activeWardEmergencies.collectAsState()
     val userName by viewModel.userName.collectAsState()
 
     val isSosActive = activeIncident != null || isServiceRunning || isEmergencyActive
@@ -275,6 +278,65 @@ fun HomeScreen(
                             )
                         }
 
+                        AnimatedVisibility(visible = !isSosActive && activeWardEmergencies.isNotEmpty()) {
+                            val wardEmergency = activeWardEmergencies.first()
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(AlertRed.copy(alpha = 0.12f))
+                                    .border(1.dp, AlertRed.copy(alpha = 0.8f), RoundedCornerShape(16.dp)),
+                                colors = CardDefaults.cardColors(containerColor = JhumkaSurface)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "🚨 WARD IN DANGER: ${wardEmergency.wardName}",
+                                            fontWeight = FontWeight.Bold,
+                                            color = JhumkaTextPrimary,
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                    Text(
+                                        text = "Emergency broadcast active! Tap below to track live location and listen to audio recorded by ${wardEmergency.wardName}.",
+                                        color = JhumkaTextSecondary,
+                                        fontSize = 12.sp,
+                                        lineHeight = 16.sp
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Button(
+                                            onClick = { onNavigateToTracking(wardEmergency.id) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.weight(1.3f)
+                                        ) {
+                                            Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Track on Map", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
+                                        OutlinedButton(
+                                            onClick = {
+                                                com.womensafety.sos.service.NotificationHelper.cancelEmergencyNotification(context, wardEmergency.id)
+                                                com.womensafety.sos.service.NotificationHelper.cancelAllAlerts(context)
+                                            },
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text("Dismiss Siren", color = JhumkaTextPrimary, fontSize = 12.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         QuickActionGrid(
                             onEmergencyPanelClick = { viewModel.setShowCallPanel(true) },
                             onNavigateToMap = onNavigateToMap,
@@ -374,6 +436,65 @@ fun HomeScreen(
                                     emergencyViewModel.stopEmergency(context)
                                 }
                             )
+                        }
+
+                        AnimatedVisibility(visible = !isSosActive && activeWardEmergencies.isNotEmpty()) {
+                            val wardEmergency = activeWardEmergencies.first()
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(AlertRed.copy(alpha = 0.12f))
+                                    .border(1.dp, AlertRed.copy(alpha = 0.8f), RoundedCornerShape(16.dp)),
+                                colors = CardDefaults.cardColors(containerColor = JhumkaSurface)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "🚨 WARD IN DANGER: ${wardEmergency.wardName}",
+                                            fontWeight = FontWeight.Bold,
+                                            color = JhumkaTextPrimary,
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                    Text(
+                                        text = "Emergency broadcast active! Tap below to track live location and listen to audio recorded by ${wardEmergency.wardName}.",
+                                        color = JhumkaTextSecondary,
+                                        fontSize = 12.sp,
+                                        lineHeight = 16.sp
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Button(
+                                            onClick = { onNavigateToTracking(wardEmergency.id) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.weight(1.3f)
+                                        ) {
+                                            Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Track on Map", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
+                                        OutlinedButton(
+                                            onClick = {
+                                                com.womensafety.sos.service.NotificationHelper.cancelEmergencyNotification(context, wardEmergency.id)
+                                                com.womensafety.sos.service.NotificationHelper.cancelAllAlerts(context)
+                                            },
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text("Dismiss Siren", color = JhumkaTextPrimary, fontSize = 12.sp)
+                                        }
+                                    }
+                                }
+                            }
                         }
 
                         // 4. 2x2 Quick Action Cards Grid

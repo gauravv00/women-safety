@@ -5,6 +5,7 @@ import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.womensafety.sos.data.model.EmergencyEvent
 import com.womensafety.sos.data.pref.UserPreferencesRepository
 import com.womensafety.sos.di.ServiceLocator
 import com.womensafety.sos.domain.repository.EmergencyRepository
@@ -14,7 +15,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -24,23 +24,18 @@ class EmergencyViewModel(
     private val userPreferences: UserPreferencesRepository = ServiceLocator.userPreferences
 ) : ViewModel() {
 
-    private val _emergencyId = MutableStateFlow("")
-    val emergencyId: StateFlow<String> = _emergencyId.asStateFlow()
+    // Tracks this device's own initiated emergency
+    private val _myEmergencyId = MutableStateFlow("")
+    val emergencyId: StateFlow<String> = _myEmergencyId.asStateFlow()
 
-    val isEmergencyActive: StateFlow<Boolean> = _emergencyId
+    // True only if this device itself has an active emergency
+    val isEmergencyActive: StateFlow<Boolean> = _myEmergencyId
         .map { it.isNotBlank() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    init {
-        // Sync active emergency if already running (e.g. from ShakeDetector or background service)
-        viewModelScope.launch {
-            emergencyRepository.observeActiveEmergencies().collect { list ->
-                if (list.isNotEmpty() && _emergencyId.value.isBlank()) {
-                    _emergencyId.value = list.first().id
-                }
-            }
-        }
-    }
+    // Tracks emergencies of OTHER wards this user is monitoring as a guardian
+    val activeWardEmergencies: StateFlow<List<EmergencyEvent>> = emergencyRepository.observeActiveEmergencies()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun startEmergency(context: Context, wardName: String = "") {
         viewModelScope.launch {
@@ -49,7 +44,8 @@ class EmergencyViewModel(
                 val res = emergencyRepository.startEmergency(resolvedName)
                 if (res.isSuccess) {
                     val id = res.getOrThrow()
-                    _emergencyId.value = id
+                    _myEmergencyId.value = id
+                    EmergencyForegroundService.activeEmergencySessionId = id
                     EmergencySosService.start(context, id)
                 } else {
                     Log.e(TAG, "Failed to start emergency", res.exceptionOrNull())
@@ -63,10 +59,7 @@ class EmergencyViewModel(
     fun stopEmergency(context: Context) {
         viewModelScope.launch {
             try {
-                var currentId = _emergencyId.value
-                if (currentId.isBlank()) {
-                    currentId = emergencyRepository.observeActiveEmergencies().firstOrNull()?.firstOrNull()?.id ?: ""
-                }
+                val currentId = _myEmergencyId.value
                 if (currentId.isNotBlank()) {
                     emergencyRepository.resolveEmergency(currentId)
                 }
@@ -93,7 +86,8 @@ class EmergencyViewModel(
                     )
                 }
 
-                _emergencyId.value = ""
+                _myEmergencyId.value = ""
+                EmergencyForegroundService.activeEmergencySessionId = ""
             } catch (e: Exception) {
                 Log.e(TAG, "Error stopping emergency", e)
             }
@@ -101,7 +95,7 @@ class EmergencyViewModel(
     }
 
     fun setEmergencyId(id: String) {
-        _emergencyId.value = id
+        _myEmergencyId.value = id
     }
 
     companion object {

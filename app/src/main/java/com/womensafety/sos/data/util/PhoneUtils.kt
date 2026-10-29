@@ -13,12 +13,11 @@ object PhoneUtils {
     }
 
     /**
-     * Validates if the phone number has a reasonable length (7 to 15 digits according to E.164).
+     * Validates if the phone number is a valid 10-digit mobile number (or 12-digit with 91 country code).
      */
     fun isValidPhoneNumber(phone: String): Boolean {
-        val sanitized = sanitizePhoneNumber(phone)
-        val digits = sanitized.filter { it.isDigit() }
-        return digits.length in 7..15
+        val digits = phone.filter { it.isDigit() }
+        return digits.length == 10 || (digits.startsWith("91") && digits.length == 12)
     }
 
     /**

@@ -10,20 +10,27 @@ data class EmergencyEvent(
     val lastLat: Double = 0.0,
     val lastLng: Double = 0.0,
     val lastAccuracy: Float = 0f,
-    val lastLocationTs: Long = 0L
+    val lastLocationTs: Long = 0L,
+    val audioUrl: String? = null
 ) {
-    fun toMap(): Map<String, Any> = mapOf(
-        "id" to id,
-        "wardUid" to wardUid,
-        "wardName" to wardName,
-        "status" to status,
-        "startedAt" to startedAt,
-        "resolvedAt" to resolvedAt,
-        "lastLat" to lastLat,
-        "lastLng" to lastLng,
-        "lastAccuracy" to lastAccuracy.toDouble(),
-        "lastLocationTs" to lastLocationTs
-    )
+    fun toMap(): Map<String, Any> {
+        val map = mutableMapOf<String, Any>(
+            "id" to id,
+            "wardUid" to wardUid,
+            "wardName" to wardName,
+            "status" to status,
+            "startedAt" to startedAt,
+            "resolvedAt" to resolvedAt,
+            "lastLat" to lastLat,
+            "lastLng" to lastLng,
+            "lastAccuracy" to lastAccuracy.toDouble(),
+            "lastLocationTs" to lastLocationTs
+        )
+        if (!audioUrl.isNullOrBlank()) {
+            map["audioUrl"] = audioUrl
+        }
+        return map
+    }
 
     companion object {
         fun fromMap(id: String, data: Map<String, Any?>): EmergencyEvent = EmergencyEvent(
@@ -36,7 +43,8 @@ data class EmergencyEvent(
             lastLat = (data["lastLat"] as? Number)?.toDouble() ?: 0.0,
             lastLng = (data["lastLng"] as? Number)?.toDouble() ?: 0.0,
             lastAccuracy = (data["lastAccuracy"] as? Number)?.toFloat() ?: 0f,
-            lastLocationTs = (data["lastLocationTs"] as? Number)?.toLong() ?: 0L
+            lastLocationTs = (data["lastLocationTs"] as? Number)?.toLong() ?: 0L,
+            audioUrl = data["audioUrl"] as? String
         )
     }
 }

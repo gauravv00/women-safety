@@ -8,6 +8,8 @@ interface EmergencyRepository {
     suspend fun startEmergency(wardName: String): Result<String>
     /** Ward: updates location in emergencies/{id} every 5s. */
     suspend fun updateLocation(emergencyId: String, lat: Double, lng: Double, accuracy: Float): Result<Unit>
+    /** Ward: updates audio recording URL in emergencies/{id}. */
+    suspend fun updateEmergencyAudio(emergencyId: String, audioUrl: String): Result<Unit> = Result.success(Unit)
     /** Ward: marks emergency as resolved, notifies guardians. */
     suspend fun resolveEmergency(emergencyId: String): Result<Unit>
     /** Guardian: listens to a single emergency doc. */

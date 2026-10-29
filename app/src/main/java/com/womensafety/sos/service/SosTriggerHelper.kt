@@ -67,6 +67,7 @@ object SosTriggerHelper {
                     val res = ServiceLocator.emergencyRepository.startEmergency(wardName)
                     if (res.isSuccess) {
                         val emergencyId = res.getOrThrow()
+                        EmergencyForegroundService.activeEmergencySessionId = emergencyId
                         EmergencySosService.start(appContext, emergencyId)
                     }
                 } catch (e: Exception) {

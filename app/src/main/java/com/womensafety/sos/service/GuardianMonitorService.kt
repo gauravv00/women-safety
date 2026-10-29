@@ -159,9 +159,12 @@ class GuardianMonitorService : Service() {
                     )
                 }
 
-                if (status.equals("ACTIVE", ignoreCase = true)) {
+                val now = System.currentTimeMillis()
+                val isRecent = (now - timestamp) < (15 * 60 * 1000L) // Only alert if triggered within the last 15 minutes
+
+                if (status.equals("ACTIVE", ignoreCase = true) && isRecent) {
                     triggerDangerAlertNotification(ward.wardPairingCode, wardName, lat, lng)
-                } else if (status.equals("RESOLVED", ignoreCase = true) || status.equals("SAFE", ignoreCase = true)) {
+                } else if (status.equals("RESOLVED", ignoreCase = true) || status.equals("SAFE", ignoreCase = true) || !isRecent) {
                     val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                     manager.cancel(ward.wardPairingCode.hashCode())
                 }
@@ -178,8 +181,11 @@ class GuardianMonitorService : Service() {
 
     private fun triggerDangerAlertNotification(code: String, wardName: String, lat: Double, lng: Double) {
         val intent = Intent(this, MainActivity::class.java).apply {
+            action = Intent.ACTION_VIEW
+            data = android.net.Uri.parse("womensafety://tracking")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("EXTRA_WARD_CODE", code)
+            putExtra("EXTRA_IS_GUARDIAN_ALERT", true)
         }
         val pendingIntent = PendingIntent.getActivity(
             this,
@@ -192,8 +198,9 @@ class GuardianMonitorService : Service() {
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ALERT_ID)
-            .setContentTitle("🚨 EMERGENCY ALERT: $wardName IS IN DANGER!")
-            .setContentText("Emergency SOS triggered! Live location: $lat, $lng. Tap to open map.")
+            .setContentTitle("🚨 WARD IN DANGER: $wardName triggered SOS!")
+            .setContentText("Tap to track live location and listen to audio recorded by $wardName.")
+            .setStyle(NotificationCompat.BigTextStyle().bigText("🚨 WARD ALERT: $wardName triggered Emergency SOS! Live coordinates: $lat, $lng. Tap to open live tracking & audio."))
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
