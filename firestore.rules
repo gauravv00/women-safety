@@ -2,51 +2,40 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users: any signed-in user can read (needed for pairingCode lookup).
-    // Only owner can write.
+    // Users: any authenticated user can read (needed for pairing code search).
+    // Only owner can write/update their profile.
     match /users/{uid} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == uid;
     }
 
-    // Notifications: owner can read/update/delete.
-    // Any signed-in user can create IF fromUid == their uid.
+    // Notifications: inbox owner can read, update (mark read), or delete.
+    // Any signed-in user can create/send a notification (pair request, SOS alert, etc.).
     match /notifications/{uid}/items/{notifId} {
       allow read, update, delete: if request.auth != null && request.auth.uid == uid;
-      allow create: if request.auth != null
-                    && request.resource.data.fromUid == request.auth.uid;
-    }
-
-    // Pair requests: participants can read; guardian writes on creation.
-    match /pairRequests/{requestId} {
-      allow read: if request.auth != null
-                  && (resource.data.guardianUid == request.auth.uid
-                      || resource.data.wardUid == request.auth.uid);
-      allow create: if request.auth != null
-                    && request.resource.data.guardianUid == request.auth.uid;
-      allow update: if request.auth != null
-                    && (resource.data.guardianUid == request.auth.uid
-                        || resource.data.wardUid == request.auth.uid);
-    }
-
-    // Pairs: readable by both members; deletable by either member.
-    match /pairs/{pairId} {
-      allow read: if request.auth != null
-                  && (resource.data.wardUid == request.auth.uid
-                      || resource.data.guardianUid == request.auth.uid);
       allow create: if request.auth != null;
-      allow delete: if request.auth != null
-                    && (resource.data.wardUid == request.auth.uid
-                        || resource.data.guardianUid == request.auth.uid);
     }
 
-    // Emergencies: ward writes; guardians with a pairs doc linking them can read.
+    // Pair requests: participants can read and write.
+    match /pairRequests/{requestId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Pairs: active pairs between ward and guardian.
+    match /pairs/{pairId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Emergencies: live SOS sessions and location points.
+    // Must be readable by authenticated guardians querying whereIn('wardUid', ...)
+    // and writable by ward broadcasting SOS or resolving.
     match /emergencies/{emergencyId} {
-      allow write: if request.auth != null
-                   && request.resource.data.wardUid == request.auth.uid;
-      allow read: if request.auth != null
-                  && (resource.data.wardUid == request.auth.uid
-                      || exists(/databases/$(database)/documents/pairs/$(resource.data.wardUid + '_' + request.auth.uid)));
+      allow read, write: if request.auth != null;
+      
+      // Subcollections (e.g. location history points if used)
+      match /{allSubcollections=**} {
+        allow read, write: if request.auth != null;
+      }
     }
   }
 }

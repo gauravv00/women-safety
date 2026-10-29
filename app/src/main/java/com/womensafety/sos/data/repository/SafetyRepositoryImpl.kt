@@ -119,7 +119,7 @@ class SafetyRepositoryImpl(
         if (!file.exists()) return@withContext
 
         try {
-            val storageRef = FirebaseStorage.getInstance().reference.child("audio_evidence/incident_${incidentId}_${file.name}")
+            val storageRef = FirebaseStorage.getInstance("gs://wosafety-17b7e.firebasestorage.app").reference.child("audio_evidence/incident_${incidentId}_${file.name}")
             storageRef.putFile(Uri.fromFile(file)).await()
             val downloadUrl = storageRef.downloadUrl.await().toString()
             incidentDao.updateAudioCloudUrl(incidentId, downloadUrl)
@@ -147,7 +147,7 @@ class SafetyRepositoryImpl(
                 val sharedPrefs = context.getSharedPreferences("women_safety_prefs", Context.MODE_PRIVATE)
                 val myCode = sharedPrefs.getString("my_pairing_code", "") ?: ""
                 if (myCode.isNotBlank()) {
-                    FirebaseDatabase.getInstance()
+                    FirebaseDatabaseHelper.getInstance()
                         .getReference("guardians")
                         .child(myCode)
                         .child("audioCloudUrl")

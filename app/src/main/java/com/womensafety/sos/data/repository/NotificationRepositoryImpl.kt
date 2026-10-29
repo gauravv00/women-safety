@@ -135,7 +135,7 @@ class NotificationRepositoryImpl(
                 try {
                     val myCode = com.womensafety.sos.di.ServiceLocator.userPreferences.settings.value.myPairingCode
                     if (myCode.isNotBlank()) {
-                        com.google.firebase.database.FirebaseDatabase.getInstance()
+                        com.womensafety.sos.data.firebase.FirebaseDatabaseHelper.getInstance()
                             .getReference("guardians")
                             .child(myCode)
                             .child("status")
@@ -346,3 +346,4 @@ class NotificationRepositoryImpl(
         private const val TAG = "NotificationRepoImpl"
     }
 }
+
