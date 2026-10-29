@@ -319,11 +319,12 @@ fun HomeScreen(
                                             onClick = {
                                                 com.womensafety.sos.service.NotificationHelper.cancelEmergencyNotification(context, wardEmergency.id)
                                                 com.womensafety.sos.service.NotificationHelper.cancelAllAlerts(context)
+                                                emergencyViewModel.dismissWardEmergency(wardEmergency.id)
                                             },
                                             shape = RoundedCornerShape(10.dp),
                                             modifier = Modifier.weight(1f)
                                         ) {
-                                            Text("Dismiss Siren", color = JhumkaTextPrimary, fontSize = 12.sp)
+                                            Text("Dismiss / Safe", color = JhumkaTextPrimary, fontSize = 12.sp)
                                         }
                                     }
                                 }
@@ -479,11 +480,12 @@ fun HomeScreen(
                                             onClick = {
                                                 com.womensafety.sos.service.NotificationHelper.cancelEmergencyNotification(context, wardEmergency.id)
                                                 com.womensafety.sos.service.NotificationHelper.cancelAllAlerts(context)
+                                                emergencyViewModel.dismissWardEmergency(wardEmergency.id)
                                             },
                                             shape = RoundedCornerShape(10.dp),
                                             modifier = Modifier.weight(1f)
                                         ) {
-                                            Text("Dismiss Siren", color = JhumkaTextPrimary, fontSize = 12.sp)
+                                            Text("Dismiss / Safe", color = JhumkaTextPrimary, fontSize = 12.sp)
                                         }
                                     }
                                 }

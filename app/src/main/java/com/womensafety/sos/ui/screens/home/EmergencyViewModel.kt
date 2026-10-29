@@ -56,6 +56,16 @@ class EmergencyViewModel(
         }
     }
 
+    fun dismissWardEmergency(emergencyId: String) {
+        viewModelScope.launch {
+            try {
+                emergencyRepository.resolveEmergency(emergencyId)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error dismissing ward emergency", e)
+            }
+        }
+    }
+
     fun stopEmergency(context: Context) {
         viewModelScope.launch {
             try {

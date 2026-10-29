@@ -233,8 +233,20 @@ class EmergencyRepositoryImpl(
                             Log.e(TAG, "Error listening to active emergencies", emError)
                             return@emListener
                         }
+                        val now = System.currentTimeMillis()
                         val events = emSnapshot?.documents?.mapNotNull { doc ->
-                            doc.data?.let { EmergencyEvent.fromMap(doc.id, it) }
+                            val data = doc.data ?: return@mapNotNull null
+                            val event = EmergencyEvent.fromMap(doc.id, data)
+                            // Filter out stale emergencies older than 30 minutes with no fresh GPS update
+                            val isStale = (event.lastLocationTs > 0 && now - event.lastLocationTs > 30 * 60 * 1000L) ||
+                                          (event.lastLocationTs == 0L && now - event.startedAt > 30 * 60 * 1000L)
+                            if (isStale) {
+                                // Auto-mark resolved in Firestore in background so it gets cleaned up
+                                doc.reference.update(mapOf("status" to "RESOLVED", "resolvedAt" to now))
+                                null
+                            } else {
+                                event
+                            }
                         } ?: emptyList()
                         // Deduplicate by wardUid: show only the single latest active emergency per ward
                         val deduplicated = events.groupBy { it.wardUid }
