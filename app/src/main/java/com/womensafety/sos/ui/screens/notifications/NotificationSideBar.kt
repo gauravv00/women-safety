@@ -66,6 +66,16 @@ import androidx.compose.ui.unit.sp
 import com.womensafety.sos.data.model.NotificationItem
 import com.womensafety.sos.data.model.NotificationStatus
 import com.womensafety.sos.data.model.NotificationType
+import com.womensafety.sos.ui.theme.JhumkaBorder
+import com.womensafety.sos.ui.theme.JhumkaCrimsonRed
+import com.womensafety.sos.ui.theme.JhumkaPinkContainer
+import com.womensafety.sos.ui.theme.JhumkaPinkPrimary
+import com.womensafety.sos.ui.theme.JhumkaSafetyGreen
+import com.womensafety.sos.ui.theme.JhumkaSurface
+import com.womensafety.sos.ui.theme.JhumkaSurfaceVariant
+import com.womensafety.sos.ui.theme.JhumkaTextPrimary
+import com.womensafety.sos.ui.theme.JhumkaTextSecondary
+import com.womensafety.sos.ui.theme.JhumkaTextTertiary
 import com.womensafety.sos.ui.theme.AlertRed
 import com.womensafety.sos.ui.theme.DarkSurface
 import com.womensafety.sos.ui.theme.DarkSurfaceVariant
@@ -117,7 +127,7 @@ fun NotificationSideBar(
                 modifier = Modifier
                     .width(sidebarWidth)
                     .fillMaxHeight(),
-                color = DarkSurface,
+                color = JhumkaSurface,
                 shadowElevation = 16.dp
             ) {
                 Column(
@@ -135,7 +145,7 @@ fun NotificationSideBar(
                         Icon(
                             imageVector = Icons.Default.Notifications,
                             contentDescription = null,
-                            tint = if (unreadCount > 0) AlertRed else TrustBlue,
+                            tint = if (unreadCount > 0) JhumkaCrimsonRed else JhumkaPinkPrimary,
                             modifier = Modifier.size(24.dp)
                         )
 
@@ -145,7 +155,7 @@ fun NotificationSideBar(
                             text = "Notifications",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = JhumkaTextPrimary
                         )
 
                         if (unreadCount > 0) {
@@ -175,7 +185,7 @@ fun NotificationSideBar(
                                 Icon(
                                     imageVector = Icons.Default.DoneAll,
                                     contentDescription = "Mark all read",
-                                    tint = TrustBlue,
+                                    tint = JhumkaPinkPrimary,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -209,7 +219,7 @@ fun NotificationSideBar(
                                 contentAlignment = Alignment.Center
                             ) {
                                 CircularProgressIndicator(
-                                    color = TrustBlue,
+                                    color = JhumkaPinkPrimary,
                                     modifier = Modifier.size(28.dp)
                                 )
                             }
@@ -318,7 +328,7 @@ fun SmallNotificationCard(
                             Text(
                                 text = relativeTime,
                                 fontSize = 10.sp,
-                                color = Color.LightGray
+                                color = JhumkaTextSecondary
                             )
                             if (!item.read) {
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -378,7 +388,7 @@ fun SmallNotificationCard(
                             text = "Check Location",
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
-                            color = Color.White
+                            color = JhumkaTextPrimary
                         )
                     }
                 }
@@ -423,7 +433,7 @@ fun SmallNotificationCard(
                             Text(
                                 text = relativeTime,
                                 fontSize = 10.sp,
-                                color = Color.LightGray
+                                color = JhumkaTextSecondary
                             )
                             if (!item.read) {
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -483,7 +493,7 @@ fun SmallNotificationCard(
                             text = "Check Location",
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
-                            color = Color.White
+                            color = JhumkaTextPrimary
                         )
                     }
                 }
@@ -501,7 +511,7 @@ fun SmallNotificationCard(
             }
 
             Card(
-                colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
+                colors = CardDefaults.cardColors(containerColor = JhumkaSurface),
                 border = BorderStroke(1.dp, accentColor.copy(alpha = 0.4f)),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
@@ -574,7 +584,7 @@ fun SmallNotificationCard(
                             text = item.body,
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
-                            color = Color.LightGray,
+                            color = JhumkaTextSecondary,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )

@@ -38,6 +38,16 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.womensafety.sos.data.entity.IncidentLog
 import com.womensafety.sos.ui.components.AppTopBar
+import com.womensafety.sos.ui.components.JhumkaWatermarkBackground
+import com.womensafety.sos.ui.theme.JhumkaBlushBackground
+import com.womensafety.sos.ui.theme.JhumkaBorder
+import com.womensafety.sos.ui.theme.JhumkaCrimsonRed
+import com.womensafety.sos.ui.theme.JhumkaPinkPrimary
+import com.womensafety.sos.ui.theme.JhumkaSafetyGreen
+import com.womensafety.sos.ui.theme.JhumkaSurface
+import com.womensafety.sos.ui.theme.JhumkaTextPrimary
+import com.womensafety.sos.ui.theme.JhumkaTextSecondary
+import androidx.compose.foundation.BorderStroke
 import com.womensafety.sos.ui.theme.AlertRed
 import com.womensafety.sos.ui.theme.DarkBackground
 import com.womensafety.sos.ui.theme.DarkSurfaceVariant
@@ -63,13 +73,15 @@ fun IncidentLogsScreen(
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
-        Box(
+        JhumkaWatermarkBackground(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(DarkBackground),
-            contentAlignment = Alignment.TopCenter
         ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopCenter
+            ) {
             if (incidents.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -104,6 +116,7 @@ fun IncidentLogsScreen(
                     }
                 }
             }
+            }
         }
     }
 }
@@ -118,8 +131,9 @@ fun IncidentItemCard(
     val hasAudio = !incident.audioFilePath.isNullOrBlank() || !incident.audioCloudUrl.isNullOrBlank()
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = JhumkaSurface),
+        border = BorderStroke(1.dp, JhumkaBorder),
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -136,35 +150,35 @@ fun IncidentItemCard(
                     text = "Incident #${incident.id}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = JhumkaTextPrimary
                 )
 
                 Text(
                     text = incident.status,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.ExtraBold,
-                    color = if (incident.status == "ACTIVE") AlertRed else SafetyGreen
+                    color = if (incident.status == "ACTIVE") JhumkaCrimsonRed else JhumkaSafetyGreen
                 )
             }
 
             Text(
                 text = dateStr,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.LightGray,
+                color = JhumkaTextSecondary,
                 modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
             )
 
             Text(
                 text = "Trigger: ${incident.triggerSource} | Lat: ${String.format("%.4f", incident.latitude)}, Lng: ${String.format("%.4f", incident.longitude)}",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = JhumkaTextSecondary
             )
 
             if (hasAudio) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Button(
                     onClick = onPlayClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = if (isPlaying) AlertRed else SafetyGreen),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isPlaying) JhumkaCrimsonRed else JhumkaPinkPrimary),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {

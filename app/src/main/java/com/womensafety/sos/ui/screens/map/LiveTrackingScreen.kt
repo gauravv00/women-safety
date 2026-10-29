@@ -69,6 +69,17 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.womensafety.sos.ui.components.AppTopBar
 import com.womensafety.sos.ui.components.SafetyMap
+import com.womensafety.sos.ui.theme.JhumkaBlushBackground
+import com.womensafety.sos.ui.theme.JhumkaBorder
+import com.womensafety.sos.ui.theme.JhumkaCrimsonRed
+import com.womensafety.sos.ui.theme.JhumkaPinkContainer
+import com.womensafety.sos.ui.theme.JhumkaPinkPrimary
+import com.womensafety.sos.ui.theme.JhumkaSafetyGreen
+import com.womensafety.sos.ui.theme.JhumkaSurface
+import com.womensafety.sos.ui.theme.JhumkaSurfaceVariant
+import com.womensafety.sos.ui.theme.JhumkaTextPrimary
+import com.womensafety.sos.ui.theme.JhumkaTextSecondary
+import com.womensafety.sos.ui.theme.JhumkaTrustBlue
 import com.womensafety.sos.ui.theme.AlertRed
 import com.womensafety.sos.ui.theme.DarkBackground
 import com.womensafety.sos.ui.theme.DarkCardBorder
@@ -161,7 +172,7 @@ fun LiveTrackingScreen(
     val accentColor = when {
         emergency != null && isEmergencyActive -> AlertRed
         emergency != null -> SafetyGreen
-        else -> TrustBlue
+        else -> JhumkaPinkPrimary
     }
 
     val timeFormatter = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
@@ -184,7 +195,7 @@ fun LiveTrackingScreen(
                 onBackClick = onBackClick
             )
         },
-        containerColor = DarkBackground
+        containerColor = JhumkaBlushBackground
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -204,8 +215,9 @@ fun LiveTrackingScreen(
             if (!hasValidTarget) {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = DarkSurface.copy(alpha = 0.92f),
-                    border = BorderStroke(1.dp, DarkCardBorder),
+                    color = JhumkaSurface.copy(alpha = 0.96f),
+                    border = BorderStroke(1.dp, JhumkaBorder),
+                    shadowElevation = 3.dp,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .padding(top = 16.dp)
@@ -215,14 +227,14 @@ fun LiveTrackingScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         CircularProgressIndicator(
-                            color = TrustBlue,
+                            color = JhumkaPinkPrimary,
                             strokeWidth = 2.dp,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Acquiring live satellite coordinates...",
-                            color = Color.LightGray,
+                            color = JhumkaTextSecondary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -249,8 +261,8 @@ fun LiveTrackingScreen(
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = AlertRed,
                                 selectedLabelColor = Color.White,
-                                containerColor = DarkSurface,
-                                labelColor = Color.LightGray
+                                containerColor = JhumkaSurface,
+                                labelColor = JhumkaTextSecondary
                             )
                         )
                     }
@@ -264,8 +276,9 @@ fun LiveTrackingScreen(
                     .padding(16.dp)
                     .align(Alignment.BottomCenter),
                 shape = RoundedCornerShape(20.dp),
-                border = BorderStroke(1.dp, DarkCardBorder),
-                colors = CardDefaults.cardColors(containerColor = DarkSurface)
+                border = BorderStroke(1.dp, JhumkaBorder),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                colors = CardDefaults.cardColors(containerColor = JhumkaSurface)
             ) {
                 Column(
                     modifier = Modifier
@@ -301,7 +314,7 @@ fun LiveTrackingScreen(
                             if (accuracy > 0) {
                                 Text(
                                     text = "±${accuracy.toInt()}m",
-                                    color = TextSecondaryDark,
+                                    color = JhumkaTextSecondary,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -313,13 +326,13 @@ fun LiveTrackingScreen(
                                 modifier = Modifier
                                     .size(32.dp)
                                     .clip(CircleShape)
-                                    .background(DarkSurfaceVariant)
-                                    .border(1.dp, DarkCardBorder, CircleShape),
+                                    .background(JhumkaPinkContainer)
+                                    .border(1.dp, JhumkaBorder, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (isRefreshingLocation) {
                                     CircularProgressIndicator(
-                                        color = TrustBlue,
+                                        color = JhumkaPinkPrimary,
                                         modifier = Modifier.size(16.dp),
                                         strokeWidth = 2.dp
                                     )
@@ -331,7 +344,7 @@ fun LiveTrackingScreen(
                                         Icon(
                                             imageVector = Icons.Default.Refresh,
                                             contentDescription = "Refresh GPS",
-                                            tint = TrustBlue,
+                                            tint = JhumkaPinkPrimary,
                                             modifier = Modifier.size(16.dp)
                                         )
                                     }
@@ -370,7 +383,7 @@ fun LiveTrackingScreen(
                                 text = emergency?.wardName?.ifBlank { "My Device" } ?: "My Device Location",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = JhumkaTextPrimary
                             )
 
                             Text(
@@ -380,13 +393,13 @@ fun LiveTrackingScreen(
                                 else "Acquiring coordinates...",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Medium,
-                                color = Color.White.copy(alpha = 0.9f)
+                                color = JhumkaTextPrimary
                             )
 
                             Text(
                                 text = "$lastUpdateText • ${String.format(Locale.US, "%.4f, %.4f", targetLat, targetLng)}",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = TextSecondaryDark
+                                color = JhumkaTextSecondary
                             )
                         }
                     }
@@ -398,14 +411,14 @@ fun LiveTrackingScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(DarkSurfaceVariant.copy(alpha = 0.6f))
+                                .background(JhumkaPinkContainer.copy(alpha = 0.4f))
                                 .padding(horizontal = 8.dp, vertical = 5.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Info,
                                 contentDescription = null,
-                                tint = TrustBlue,
+                                tint = JhumkaPinkPrimary,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -413,7 +426,7 @@ fun LiveTrackingScreen(
                                 text = "Default simulated location in Android Emulator. On physical phones, live hardware GPS coordinates are used.",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 10.sp,
-                                color = TextSecondaryDark,
+                                color = JhumkaTextSecondary,
                                 lineHeight = 13.sp
                             )
                         }
@@ -441,22 +454,22 @@ fun LiveTrackingScreen(
                                 }
                             },
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, DarkCardBorder),
+                            border = BorderStroke(1.dp, JhumkaBorder),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = DarkSurfaceVariant
+                                containerColor = JhumkaSurface
                             ),
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Navigation,
                                 contentDescription = null,
-                                tint = TrustBlue,
+                                tint = JhumkaPinkPrimary,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Open in Maps",
-                                color = TrustBlue,
+                                color = JhumkaPinkPrimary,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
                             )
@@ -493,7 +506,7 @@ fun LiveTrackingScreen(
             if (showResolveDialog) {
                 AlertDialog(
                     onDismissRequest = { showResolveDialog = false },
-                    containerColor = DarkSurface,
+                    containerColor = JhumkaSurface,
                     shape = RoundedCornerShape(20.dp),
                     icon = {
                         Icon(imageVector = Icons.Default.Check, contentDescription = null, tint = SafetyGreen)
@@ -501,14 +514,14 @@ fun LiveTrackingScreen(
                     title = {
                         Text(
                             text = "Resolve Emergency SOS?",
-                            color = Color.White,
+                            color = JhumkaTextPrimary,
                             fontWeight = FontWeight.Bold
                         )
                     },
                     text = {
                         Text(
                             text = "Are you safe now? This will mark the emergency as RESOLVED, stop location broadcasting, and notify all your guardians.",
-                            color = Color.LightGray,
+                            color = JhumkaTextSecondary,
                             style = MaterialTheme.typography.bodyMedium
                         )
                     },

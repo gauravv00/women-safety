@@ -56,6 +56,14 @@ import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.womensafety.sos.BuildConfig
+import com.womensafety.sos.ui.theme.JhumkaBorder
+import com.womensafety.sos.ui.theme.JhumkaCrimsonRed
+import com.womensafety.sos.ui.theme.JhumkaPinkPrimary
+import com.womensafety.sos.ui.theme.JhumkaSafetyGreen
+import com.womensafety.sos.ui.theme.JhumkaSurface
+import com.womensafety.sos.ui.theme.JhumkaSurfaceVariant
+import com.womensafety.sos.ui.theme.JhumkaTextPrimary
+import com.womensafety.sos.ui.theme.JhumkaTextSecondary
 import com.womensafety.sos.ui.theme.AlertRed
 import com.womensafety.sos.ui.theme.DarkCardBorder
 import com.womensafety.sos.ui.theme.DarkSurface
@@ -219,18 +227,18 @@ fun SafetyMap(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Google Maps API Key Required", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("Google Maps API Key Required", color = JhumkaTextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             "Google rejected tile download (Authorization failure). Add MAPS_API_KEY to local.properties, or switch back to OpenStreetMap for free tiles.",
-                            color = Color.LightGray,
+                            color = JhumkaTextSecondary,
                             fontSize = 11.sp
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Button(
                             onClick = { useGoogleMaps = false },
-                            colors = ButtonDefaults.buttonColors(containerColor = TrustBlue),
+                            colors = ButtonDefaults.buttonColors(containerColor = JhumkaPinkPrimary),
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                             modifier = Modifier.height(30.dp)
@@ -261,9 +269,9 @@ fun SafetyMap(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 12.dp, end = 12.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(DarkSurfaceVariant.copy(alpha = 0.92f))
-                .border(1.dp, DarkCardBorder, RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(10.dp))
+                .background(JhumkaSurface.copy(alpha = 0.95f))
+                .border(1.dp, JhumkaBorder, RoundedCornerShape(10.dp))
                 .clickable { useGoogleMaps = !useGoogleMaps }
                 .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -271,13 +279,13 @@ fun SafetyMap(
             Icon(
                 imageVector = Icons.Default.Layers,
                 contentDescription = "Switch Map",
-                tint = if (useGoogleMaps) TrustBlue else SafetyGreen,
-                modifier = Modifier.size(14.dp)
+                tint = if (useGoogleMaps) JhumkaPinkPrimary else JhumkaSafetyGreen,
+                modifier = Modifier.size(15.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = if (useGoogleMaps) "Google Maps" else "OpenStreetMap",
-                color = Color.White,
+                color = JhumkaTextPrimary,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -301,8 +309,8 @@ fun SafetyMap(
                     recenterTrigger++
                 }
             },
-            containerColor = DarkSurface,
-            contentColor = accentColor,
+            containerColor = JhumkaSurface,
+            contentColor = JhumkaPinkPrimary,
             elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
             modifier = Modifier
                 .align(Alignment.BottomEnd)

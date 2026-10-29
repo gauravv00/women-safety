@@ -87,6 +87,19 @@ import com.womensafety.sos.data.util.ContactImportHelper
 import com.womensafety.sos.data.util.ContactImportResult
 import com.womensafety.sos.data.util.PhoneUtils
 import com.womensafety.sos.ui.components.AppTopBar
+import com.womensafety.sos.ui.components.JhumkaWatermarkBackground
+import com.womensafety.sos.ui.theme.JhumkaBlushBackground
+import com.womensafety.sos.ui.theme.JhumkaBorder
+import com.womensafety.sos.ui.theme.JhumkaCrimsonRed
+import com.womensafety.sos.ui.theme.JhumkaPinkContainer
+import com.womensafety.sos.ui.theme.JhumkaPinkPrimary
+import com.womensafety.sos.ui.theme.JhumkaSafetyGreen
+import com.womensafety.sos.ui.theme.JhumkaSurface
+import com.womensafety.sos.ui.theme.JhumkaSurfaceVariant
+import com.womensafety.sos.ui.theme.JhumkaTextPrimary
+import com.womensafety.sos.ui.theme.JhumkaTextSecondary
+import com.womensafety.sos.ui.theme.JhumkaTextTertiary
+import androidx.compose.foundation.BorderStroke
 import com.womensafety.sos.ui.theme.AlertRed
 import com.womensafety.sos.ui.theme.DarkBackground
 import com.womensafety.sos.ui.theme.DarkSurface
@@ -219,20 +232,22 @@ fun TrustedContactsScreen(
                     attemptedSubmit = false
                     showAddDialog = true
                 },
-                containerColor = AlertRed,
+                containerColor = JhumkaPinkPrimary,
                 contentColor = Color.White
             ) {
                 Icon(imageVector = Icons.Default.Add, contentDescription = "Add Contact")
             }
         }
     ) { paddingValues ->
-        Box(
+        JhumkaWatermarkBackground(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(DarkBackground),
-            contentAlignment = Alignment.TopCenter
         ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopCenter
+            ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -241,8 +256,9 @@ fun TrustedContactsScreen(
             ) {
                 // Info Header Card
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = JhumkaSurface),
+                    border = BorderStroke(1.dp, JhumkaBorder),
+                    shape = RoundedCornerShape(18.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -258,14 +274,14 @@ fun TrustedContactsScreen(
                                 text = "Emergency Escalation Hierarchy",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = JhumkaTextPrimary
                             )
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = "Priority #1 contact is automatically dialed when SOS triggers. If unanswered, call escalates down the list.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.LightGray
+                            color = JhumkaTextSecondary
                         )
                     }
                 }
@@ -281,15 +297,16 @@ fun TrustedContactsScreen(
                             contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
-                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = JhumkaSurfaceVariant),
+                    border = BorderStroke(1.dp, JhumkaBorder),
+                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
+                        .height(52.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Contacts, contentDescription = null, tint = TrustBlue)
+                    Icon(imageVector = Icons.Default.Contacts, contentDescription = null, tint = JhumkaPinkPrimary)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Import from Phone Contacts", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text(text = "Import from Phone Contacts", color = JhumkaTextPrimary, fontWeight = FontWeight.SemiBold)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -305,21 +322,21 @@ fun TrustedContactsScreen(
                             Icon(
                                 imageVector = Icons.Default.Person,
                                 contentDescription = null,
-                                tint = Color.DarkGray,
+                                tint = JhumkaPinkPrimary.copy(alpha = 0.4f),
                                 modifier = Modifier.size(64.dp)
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = "No trusted contacts yet",
                                 style = MaterialTheme.typography.titleMedium,
-                                color = Color.Gray,
+                                color = JhumkaTextPrimary,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = "Add at least 1-2 contacts who will receive your SOS alerts & live location.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.DarkGray,
+                                color = JhumkaTextSecondary,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                 modifier = Modifier.padding(horizontal = 32.dp)
                             )
@@ -353,12 +370,12 @@ fun TrustedContactsScreen(
             if (showAddDialog) {
                 AlertDialog(
                     onDismissRequest = { showAddDialog = false },
-                    containerColor = DarkSurface,
+                    containerColor = JhumkaSurface,
                     modifier = Modifier.widthIn(max = 520.dp),
                     title = {
                         Text(
                             text = "Add Trusted Contact",
-                            color = Color.White,
+                            color = JhumkaTextPrimary,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
@@ -392,12 +409,12 @@ fun TrustedContactsScreen(
                                     Icon(imageVector = Icons.Default.Person, contentDescription = null, tint = Color.Gray)
                                 },
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = TrustBlue,
-                                    unfocusedBorderColor = Color.DarkGray,
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    focusedLabelColor = TrustBlue,
-                                    unfocusedLabelColor = Color.Gray
+                                    focusedBorderColor = JhumkaPinkPrimary,
+                                    unfocusedBorderColor = JhumkaBorder,
+                                    focusedTextColor = JhumkaTextPrimary,
+                                    unfocusedTextColor = JhumkaTextPrimary,
+                                    focusedLabelColor = JhumkaPinkPrimary,
+                                    unfocusedLabelColor = JhumkaTextSecondary
                                 ),
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -456,12 +473,12 @@ fun TrustedContactsScreen(
                                     )
                                 },
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = if (isPhoneValid) SafetyGreen else TrustBlue,
-                                    unfocusedBorderColor = Color.DarkGray,
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    focusedLabelColor = TrustBlue,
-                                    unfocusedLabelColor = Color.Gray
+                                    focusedBorderColor = if (isPhoneValid) JhumkaSafetyGreen else JhumkaPinkPrimary,
+                                    unfocusedBorderColor = JhumkaBorder,
+                                    focusedTextColor = JhumkaTextPrimary,
+                                    unfocusedTextColor = JhumkaTextPrimary,
+                                    focusedLabelColor = JhumkaPinkPrimary,
+                                    unfocusedLabelColor = JhumkaTextSecondary
                                 ),
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -470,7 +487,7 @@ fun TrustedContactsScreen(
                             Text(
                                 text = "Relationship:",
                                 style = MaterialTheme.typography.labelMedium,
-                                color = Color.LightGray,
+                                color = JhumkaTextPrimary,
                                 fontWeight = FontWeight.SemiBold
                             )
                             FlowRow(
@@ -485,10 +502,10 @@ fun TrustedContactsScreen(
                                         onClick = { inputRelation = chip },
                                         label = { Text(chip, fontSize = 12.sp) },
                                         colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = TrustBlue,
-                                            selectedLabelColor = Color.White,
-                                            containerColor = DarkSurfaceVariant,
-                                            labelColor = Color.LightGray
+                                            selectedContainerColor = JhumkaPinkContainer,
+                                            selectedLabelColor = JhumkaPinkPrimary,
+                                            containerColor = JhumkaSurface,
+                                            labelColor = JhumkaTextSecondary
                                         )
                                     )
                                 }
@@ -508,7 +525,7 @@ fun TrustedContactsScreen(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isNameValid && isPhoneValid) AlertRed else AlertRed.copy(alpha = 0.5f)
+                                containerColor = if (isNameValid && isPhoneValid) JhumkaPinkPrimary else JhumkaPinkPrimary.copy(alpha = 0.5f)
                             )
                         ) {
                             Text("Save Contact", color = Color.White, fontWeight = FontWeight.Bold)
@@ -524,6 +541,7 @@ fun TrustedContactsScreen(
         }
     }
 }
+}
 
 @Composable
 fun ContactItemCard(
@@ -535,8 +553,9 @@ fun ContactItemCard(
     onDelete: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = JhumkaSurface),
+        border = BorderStroke(1.dp, JhumkaBorder),
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -551,7 +570,7 @@ fun ContactItemCard(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(CircleShape)
-                        .background(if (contact.priorityRank == 1) AlertRed else SafetyGreen),
+                        .background(if (contact.priorityRank == 1) JhumkaCrimsonRed else JhumkaSafetyGreen),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -570,7 +589,7 @@ fun ContactItemCard(
                             text = contact.name,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = JhumkaTextPrimary
                         )
                         if (contact.priorityRank == 1) {
                             Spacer(modifier = Modifier.width(6.dp))
@@ -585,7 +604,7 @@ fun ContactItemCard(
                     Text(
                         text = "${contact.relationship} • ${contact.phoneNumber}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.LightGray
+                        color = JhumkaTextSecondary
                     )
                 }
             }
@@ -594,16 +613,16 @@ fun ContactItemCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (!isFirst) {
                     IconButton(onClick = onMoveUp, modifier = Modifier.size(36.dp)) {
-                        Icon(imageVector = Icons.Default.ArrowUpward, contentDescription = "Move Up", tint = Color.LightGray)
+                        Icon(imageVector = Icons.Default.ArrowUpward, contentDescription = "Move Up", tint = JhumkaTextSecondary)
                     }
                 }
                 if (!isLast) {
                     IconButton(onClick = onMoveDown, modifier = Modifier.size(36.dp)) {
-                        Icon(imageVector = Icons.Default.ArrowDownward, contentDescription = "Move Down", tint = Color.LightGray)
+                        Icon(imageVector = Icons.Default.ArrowDownward, contentDescription = "Move Down", tint = JhumkaTextSecondary)
                     }
                 }
                 IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = AlertRed.copy(alpha = 0.8f))
+                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = JhumkaCrimsonRed)
                 }
             }
         }

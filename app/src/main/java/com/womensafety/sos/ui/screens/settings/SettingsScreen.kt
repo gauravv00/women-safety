@@ -5,6 +5,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +36,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Security
@@ -42,7 +45,9 @@ import androidx.compose.material.icons.filled.Vibration
 
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -84,11 +89,26 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Phone
 import com.womensafety.sos.data.entity.PairedWard
 import com.womensafety.sos.data.util.PhoneUtils
 import com.womensafety.sos.ui.components.AppTopBar
+import com.womensafety.sos.ui.components.JhumkaWatermarkBackground
+import com.womensafety.sos.ui.theme.JhumkaBlushBackground
+import com.womensafety.sos.ui.theme.JhumkaBorder
+import com.womensafety.sos.ui.theme.JhumkaCrimsonRed
+import com.womensafety.sos.ui.theme.JhumkaCrimsonContainer
+import com.womensafety.sos.ui.theme.JhumkaPinkContainer
+import com.womensafety.sos.ui.theme.JhumkaPinkPrimary
+import com.womensafety.sos.ui.theme.JhumkaSafetyGreen
+import com.womensafety.sos.ui.theme.JhumkaSurface
+import com.womensafety.sos.ui.theme.JhumkaSurfaceVariant
+import com.womensafety.sos.ui.theme.JhumkaTextPrimary
+import com.womensafety.sos.ui.theme.JhumkaTextSecondary
+import com.womensafety.sos.ui.theme.JhumkaTextTertiary
+import androidx.compose.foundation.BorderStroke
 import com.womensafety.sos.ui.theme.AlertRed
 import com.womensafety.sos.ui.theme.DarkBackground
 import com.womensafety.sos.ui.theme.DarkSurface
@@ -100,6 +120,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     onBackClick: (() -> Unit)? = null,
+    onLogout: () -> Unit = {},
     viewModel: SettingsViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -116,6 +137,7 @@ fun SettingsScreen(
 
     var showEditNameDialog by remember { mutableStateOf(false) }
     var inputDisplayName by remember { mutableStateOf("") }
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     val isWardCodeValid = remember(inputWardCode) { PhoneUtils.isValidPairingCode(inputWardCode) }
     val isWardNameValid = remember(inputWardName) { inputWardName.trim().length >= 2 }
@@ -151,10 +173,10 @@ fun SettingsScreen(
     fun sharePairingCode(code: String) {
         val sendIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "My Women Safety Pairing Code")
+            putExtra(Intent.EXTRA_SUBJECT, "My Jhumka Safety Pairing Code")
             putExtra(
                 Intent.EXTRA_TEXT,
-                "Add me as your ward on the Women Safety SOS App! My Device Safety Code is: $code. You will get instant alerts and live location if I am ever in danger."
+                "Add me as your ward on the Jhumka App! My Device Safety Code is: $code. You will get instant alerts and live location if I am ever in danger."
             )
         }
         context.startActivity(Intent.createChooser(sendIntent, "Share Safety Pairing Code"))
@@ -170,13 +192,15 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
-        Box(
+        JhumkaWatermarkBackground(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(DarkBackground),
-            contentAlignment = Alignment.TopCenter
         ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopCenter
+            ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -190,7 +214,7 @@ fun SettingsScreen(
                     text = "Guardian Device Pairing",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = TrustBlue
+                    color = JhumkaPinkPrimary
                 )
 
                 // Account & Profile Information Card
@@ -199,7 +223,7 @@ fun SettingsScreen(
                 val userPhone = currentUser?.phoneNumber
 
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
+                    colors = CardDefaults.cardColors(containerColor = JhumkaSurface),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -223,7 +247,7 @@ fun SettingsScreen(
                                     Icon(
                                         imageVector = Icons.Default.AccountCircle,
                                         contentDescription = null,
-                                        tint = TrustBlue,
+                                        tint = JhumkaPinkPrimary,
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
@@ -233,7 +257,7 @@ fun SettingsScreen(
                                         text = "Account Profile",
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = JhumkaTextPrimary
                                     )
                                     Text(
                                         text = if (currentUser != null && !currentUser.isAnonymous) "Verified Account" else "Guest Account",
@@ -248,7 +272,7 @@ fun SettingsScreen(
                                 inputDisplayName = settings.displayName
                                 showEditNameDialog = true
                             }) {
-                                Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit Name", tint = TrustBlue)
+                                Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit Name", tint = JhumkaPinkPrimary)
                             }
                         }
 
@@ -272,7 +296,7 @@ fun SettingsScreen(
                             Text(
                                 text = settings.displayName.ifBlank { currentUser?.displayName ?: "User" },
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White,
+                                color = JhumkaTextPrimary,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -298,7 +322,7 @@ fun SettingsScreen(
                                 Text(
                                     text = userEmail,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.LightGray
+                                    color = JhumkaTextSecondary
                                 )
                             }
                         }
@@ -330,12 +354,41 @@ fun SettingsScreen(
                                 )
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        OutlinedButton(
+                            onClick = { showLogoutDialog = true },
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, JhumkaCrimsonRed.copy(alpha = 0.5f)),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = JhumkaCrimsonRed
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Log Out",
+                                tint = JhumkaCrimsonRed,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Log Out of Account",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = JhumkaCrimsonRed
+                            )
+                        }
                     }
                 }
 
                 // Shareable Safety Pairing Code Card
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
+                    colors = CardDefaults.cardColors(containerColor = JhumkaSurface),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -344,19 +397,19 @@ fun SettingsScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(imageVector = Icons.Default.QrCode, contentDescription = null, tint = TrustBlue)
+                            Icon(imageVector = Icons.Default.QrCode, contentDescription = null, tint = JhumkaPinkPrimary)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Your Safety Pairing Code",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = JhumkaTextPrimary
                             )
                         }
                         Text(
                             text = "Give this 6-character code to your family or guardian so they can track your live SOS broadcasts in real-time.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.LightGray
+                            color = JhumkaTextSecondary
                         )
 
                         // Highlighted Code Box
@@ -364,7 +417,8 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(DarkSurface)
+                                .background(JhumkaPinkContainer.copy(alpha = 0.4f))
+                                .border(1.dp, JhumkaBorder, RoundedCornerShape(12.dp))
                                 .padding(vertical = 12.dp, horizontal = 16.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -372,7 +426,7 @@ fun SettingsScreen(
                                 text = settings.myPairingCode,
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = TrustBlue,
+                                color = JhumkaPinkPrimary,
                                 fontFamily = FontFamily.Monospace,
                                 letterSpacing = 3.sp
                             )
@@ -384,17 +438,18 @@ fun SettingsScreen(
                         ) {
                             Button(
                                 onClick = { copyCodeToClipboard(settings.myPairingCode) },
-                                colors = ButtonDefaults.buttonColors(containerColor = DarkBackground),
+                                colors = ButtonDefaults.buttonColors(containerColor = JhumkaSurface),
+                                border = BorderStroke(1.dp, JhumkaBorder),
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, tint = JhumkaTextPrimary, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Copy Code", color = Color.White, fontSize = 13.sp)
+                                Text("Copy Code", color = JhumkaTextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                             }
                             Button(
                                 onClick = { sharePairingCode(settings.myPairingCode) },
-                                colors = ButtonDefaults.buttonColors(containerColor = TrustBlue),
+                                colors = ButtonDefaults.buttonColors(containerColor = JhumkaPinkPrimary),
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
@@ -408,7 +463,7 @@ fun SettingsScreen(
 
                 // Paired Wards List
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
+                    colors = CardDefaults.cardColors(containerColor = JhumkaSurface),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -428,7 +483,7 @@ fun SettingsScreen(
                                     text = "Paired Wards / Friends",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.White
+                                    color = JhumkaTextPrimary
                                 )
                             }
                             IconButton(onClick = {
@@ -480,7 +535,7 @@ fun SettingsScreen(
                     text = "Emergency Trigger Settings",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = JhumkaTextPrimary
                 )
 
                 SettingSwitchCard(
@@ -504,7 +559,7 @@ fun SettingsScreen(
                     text = "Auto-Dialing & Escalation",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = JhumkaTextPrimary
                 )
 
                 SettingSwitchCard(
@@ -517,14 +572,14 @@ fun SettingsScreen(
 
                 if (settings.autoCallTopContact) {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
+                        colors = CardDefaults.cardColors(containerColor = JhumkaSurface),
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
                                 text = "Auto-call Delay: ${settings.autoCallDelaySeconds} seconds",
-                                color = Color.White,
+                                color = JhumkaTextPrimary,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Slider(
@@ -545,12 +600,28 @@ fun SettingsScreen(
                     onCheckedChange = { viewModel.setSequentialEscalation(it) }
                 )
 
+                // Display & Theme
+                Text(
+                    text = "Display & Theme",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = JhumkaTextPrimary
+                )
+
+                SettingSwitchCard(
+                    title = "Dark Mode",
+                    subtitle = "Switch between clean blush and dark obsidian theme.",
+                    icon = Icons.Default.DarkMode,
+                    checked = settings.darkModeEnabled,
+                    onCheckedChange = { viewModel.setDarkMode(it) }
+                )
+
                 // Battery Awareness
                 Text(
                     text = "Battery & Performance",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = JhumkaTextPrimary
                 )
 
                 SettingSwitchCard(
@@ -568,12 +639,12 @@ fun SettingsScreen(
             if (showPairDialog) {
                 AlertDialog(
                     onDismissRequest = { showPairDialog = false },
-                    containerColor = DarkSurface,
+                    containerColor = JhumkaSurface,
                     modifier = Modifier.widthIn(max = 520.dp),
                     title = {
                         Text(
                             text = "Pair Protected Ward / Friend",
-                            color = Color.White,
+                            color = JhumkaTextPrimary,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
@@ -608,12 +679,12 @@ fun SettingsScreen(
                                     Icon(imageVector = Icons.Default.Person, contentDescription = null, tint = Color.Gray)
                                 },
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = TrustBlue,
-                                    unfocusedBorderColor = Color.DarkGray,
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    focusedLabelColor = TrustBlue,
-                                    unfocusedLabelColor = Color.Gray
+                                    focusedBorderColor = JhumkaPinkPrimary,
+                                    unfocusedBorderColor = JhumkaBorder,
+                                    focusedTextColor = JhumkaTextPrimary,
+                                    unfocusedTextColor = JhumkaTextPrimary,
+                                    focusedLabelColor = JhumkaPinkPrimary,
+                                    unfocusedLabelColor = JhumkaTextSecondary
                                 ),
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -663,12 +734,12 @@ fun SettingsScreen(
                                     )
                                 },
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = if (isWardCodeValid) SafetyGreen else TrustBlue,
-                                    unfocusedBorderColor = Color.DarkGray,
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    focusedLabelColor = TrustBlue,
-                                    unfocusedLabelColor = Color.Gray
+                                    focusedBorderColor = if (isWardCodeValid) JhumkaSafetyGreen else JhumkaPinkPrimary,
+                                    unfocusedBorderColor = JhumkaBorder,
+                                    focusedTextColor = JhumkaTextPrimary,
+                                    unfocusedTextColor = JhumkaTextPrimary,
+                                    focusedLabelColor = JhumkaPinkPrimary,
+                                    unfocusedLabelColor = JhumkaTextSecondary
                                 ),
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -685,7 +756,7 @@ fun SettingsScreen(
                             },
                             enabled = pairRequestState !is PairRequestState.Loading,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isWardNameValid && isWardCodeValid) TrustBlue else TrustBlue.copy(alpha = 0.5f)
+                                containerColor = if (isWardNameValid && isWardCodeValid) JhumkaPinkPrimary else JhumkaPinkPrimary.copy(alpha = 0.5f)
                             )
                         ) {
                             if (pairRequestState is PairRequestState.Loading) {
@@ -703,13 +774,63 @@ fun SettingsScreen(
                 )
             }
 
+            // Logout Confirmation Dialog
+            if (showLogoutDialog) {
+                AlertDialog(
+                    onDismissRequest = { showLogoutDialog = false },
+                    containerColor = JhumkaSurface,
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.widthIn(max = 480.dp),
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = JhumkaCrimsonRed,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    },
+                    title = {
+                        Text(
+                            text = "Log Out of Jhumka?",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = JhumkaTextPrimary
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "You will be signed out of your current session. You can easily sign back in anytime using Google or Phone OTP.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = JhumkaTextSecondary
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showLogoutDialog = false
+                                viewModel.logout(context, onLogout)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = JhumkaCrimsonRed),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Log Out", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showLogoutDialog = false }) {
+                            Text("Cancel", color = JhumkaTextSecondary, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                )
+            }
+
             // Edit User Name Dialog with Responsive Bounds
             if (showEditNameDialog) {
                 AlertDialog(
                     onDismissRequest = { showEditNameDialog = false },
-                    containerColor = DarkSurface,
+                    containerColor = JhumkaSurface,
                     modifier = Modifier.widthIn(max = 480.dp),
-                    title = { Text("Your Display Name", color = Color.White, fontWeight = FontWeight.Bold) },
+                    title = { Text("Your Display Name", color = JhumkaTextPrimary, fontWeight = FontWeight.Bold) },
                     text = {
                         OutlinedTextField(
                             value = inputDisplayName,
@@ -718,10 +839,12 @@ fun SettingsScreen(
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = TrustBlue,
-                                unfocusedBorderColor = Color.DarkGray,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
+                                focusedBorderColor = JhumkaPinkPrimary,
+                                unfocusedBorderColor = JhumkaBorder,
+                                focusedTextColor = JhumkaTextPrimary,
+                                unfocusedTextColor = JhumkaTextPrimary,
+                                focusedLabelColor = JhumkaPinkPrimary,
+                                unfocusedLabelColor = JhumkaTextSecondary
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -737,7 +860,7 @@ fun SettingsScreen(
                                     }
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = TrustBlue)
+                            colors = ButtonDefaults.buttonColors(containerColor = JhumkaPinkPrimary)
                         ) {
                             Text("Save", color = Color.White)
                         }
@@ -752,6 +875,7 @@ fun SettingsScreen(
         }
     }
 }
+}
 
 @Composable
 fun PairedWardRow(
@@ -761,7 +885,8 @@ fun PairedWardRow(
     val isEmergency = ward.lastStatus.equals("ACTIVE", ignoreCase = true)
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = if (isEmergency) AlertRed.copy(alpha = 0.2f) else DarkBackground),
+        colors = CardDefaults.cardColors(containerColor = if (isEmergency) JhumkaCrimsonContainer else JhumkaSurface),
+        border = BorderStroke(1.dp, if (isEmergency) JhumkaCrimsonRed.copy(alpha = 0.4f) else JhumkaBorder),
         shape = RoundedCornerShape(10.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -796,7 +921,7 @@ fun PairedWardRow(
                             text = ward.wardName,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = JhumkaTextPrimary
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
@@ -809,7 +934,7 @@ fun PairedWardRow(
                     Text(
                         text = "Code: ${ward.wardPairingCode}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.LightGray,
+                        color = JhumkaTextSecondary,
                         fontFamily = FontFamily.Monospace
                     )
                 }
@@ -835,9 +960,13 @@ fun SettingSwitchCard(
     onCheckedChange: (Boolean) -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-        shape = RoundedCornerShape(14.dp),
-        modifier = Modifier.fillMaxWidth()
+        colors = CardDefaults.cardColors(containerColor = JhumkaSurface),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, JhumkaBorder),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onCheckedChange(!checked) }
     ) {
         Row(
             modifier = Modifier
@@ -847,19 +976,19 @@ fun SettingSwitchCard(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                Icon(imageVector = icon, contentDescription = null, tint = AlertRed)
+                Icon(imageVector = icon, contentDescription = null, tint = JhumkaPinkPrimary)
                 Spacer(modifier = Modifier.width(14.dp))
                 Column {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = JhumkaTextPrimary
                     )
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.LightGray,
+                        color = JhumkaTextSecondary,
                         lineHeight = 16.sp
                     )
                 }
@@ -868,7 +997,13 @@ fun SettingSwitchCard(
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
-                colors = SwitchDefaults.colors(checkedThumbColor = AlertRed, checkedTrackColor = AlertRed.copy(alpha = 0.5f))
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = JhumkaPinkPrimary,
+                    checkedTrackColor = JhumkaPinkContainer,
+                    uncheckedThumbColor = JhumkaTextSecondary,
+                    uncheckedTrackColor = JhumkaSurfaceVariant,
+                    uncheckedBorderColor = JhumkaBorder
+                )
             )
         }
     }

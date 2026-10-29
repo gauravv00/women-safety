@@ -1,6 +1,11 @@
 package com.womensafety.sos.service
 
 import android.annotation.SuppressLint
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Bundle
+import android.telecom.TelecomManager
+import android.telephony.TelephonyManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -206,34 +211,175 @@ class EmergencyForegroundService : Service() {
         }
     }
 
+    private fun isPhoneInCall(): Boolean {
+        try {
+            val telecomManager = getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+            if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
+                if (telecomManager?.isInCall == true) return true
+            }
+        } catch (e: Exception) {
+            // Silently fallback
+        }
+
+        try {
+            val telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
+            val state = telephonyManager?.callState ?: TelephonyManager.CALL_STATE_IDLE
+            return state != TelephonyManager.CALL_STATE_IDLE
+        } catch (e: Exception) {
+            return false
+        }
+    }
+
     private fun scheduleAutoCall() {
         val settings = ServiceLocator.userPreferences.settings.value
-        if (!settings.autoCallTopContact) return
+        if (!settings.autoCallTopContact && !settings.sequentialEscalationEnabled) {
+            Log.d("EmergencyService", "Both auto-call and sequential escalation are disabled in settings.")
+            return
+        }
 
+        autoCallJob?.cancel()
         autoCallJob = serviceScope.launch {
-            delay(settings.autoCallDelaySeconds * 1000L)
-            val contacts = ServiceLocator.repository.getContactsList()
-            if (contacts.isNotEmpty()) {
-                val topContact = contacts.first()
-                makeEmergencyPhoneCall(topContact.phoneNumber)
+            val initialDelaySeconds = if (settings.autoCallTopContact) {
+                settings.autoCallDelaySeconds.coerceAtLeast(3)
+            } else {
+                5
             }
+            Log.d("EmergencyService", "Starting auto-call / sequential escalation countdown (${initialDelaySeconds}s)")
+
+            for (sec in 0 until initialDelaySeconds) {
+                if (!_isServiceRunning.value) return@launch
+                delay(1000L)
+            }
+
+            val contacts = ServiceLocator.repository.getContactsList()
+            if (contacts.isEmpty()) {
+                Log.w("EmergencyService", "Sequential escalation: No trusted contacts found.")
+                return@launch
+            }
+
+            if (!settings.sequentialEscalationEnabled) {
+                val topContact = contacts.first()
+                if (_isServiceRunning.value) {
+                    val cleanPhone = com.womensafety.sos.data.util.PhoneUtils.sanitizePhoneNumber(topContact.phoneNumber)
+                    Log.i("EmergencyService", "Auto-calling top contact: ${topContact.name} ($cleanPhone)")
+                    updateNotification("Calling Priority #1: ${topContact.name}")
+                    makeEmergencyPhoneCall(cleanPhone)
+                }
+                return@launch
+            }
+
+            // Sequential Escalation: Dial contacts one by one in priority order
+            for ((index, contact) in contacts.withIndex()) {
+                if (!_isServiceRunning.value) {
+                    Log.d("EmergencyService", "Emergency cancelled, stopping sequential escalation.")
+                    break
+                }
+
+                val cleanPhone = com.womensafety.sos.data.util.PhoneUtils.sanitizePhoneNumber(contact.phoneNumber)
+                if (cleanPhone.isBlank()) continue
+
+                Log.i(
+                    "EmergencyService",
+                    "Sequential Escalation [${index + 1}/${contacts.size}]: Dialing Priority #${contact.priorityRank} ${contact.name} ($cleanPhone)"
+                )
+                updateNotification("Escalating [${index + 1}/${contacts.size}]: Dialing ${contact.name} (#${contact.priorityRank})")
+                makeEmergencyPhoneCall(cleanPhone)
+
+                if (index < contacts.size - 1) {
+                    val nextContact = contacts[index + 1]
+
+                    // 1. Give 5 seconds for telecom stack to connect and initiate the outgoing call
+                    var elapsedSec = 0
+                    while (_isServiceRunning.value && elapsedSec < 5) {
+                        delay(1000L)
+                        elapsedSec++
+                    }
+
+                    // 2. Wait for the call to finish / disconnect (up to 35 seconds max carrier ring timeout)
+                    val maxWaitSec = 35
+                    var waitingCallSec = 5
+                    while (_isServiceRunning.value && waitingCallSec < maxWaitSec) {
+                        val inCall = isPhoneInCall()
+                        if (!inCall && waitingCallSec >= 8) {
+                            Log.i("EmergencyService", "Call to ${contact.name} disconnected at ${waitingCallSec}s. Entering cooldown buffer.")
+                            break
+                        }
+                        updateNotification("Calling ${contact.name} (#${contact.priorityRank}) [${waitingCallSec}s] • Next: ${nextContact.name}")
+                        delay(1000L)
+                        waitingCallSec++
+                    }
+
+                    if (!_isServiceRunning.value) break
+
+                    // 3. ESSENTIAL 3.5s COOLDOWN BUFFER:
+                    // After previous call disconnects, Android Telecom and cellular radio require 2-3s
+                    // to completely clear the audio/modem channel from DISCONNECTING to IDLE.
+                    // This prevents the carrier/dialer "Wait till I try to connect this call" error!
+                    Log.i("EmergencyService", "Waiting 3.5s cooldown buffer for telecom modem to clear before calling ${nextContact.name}...")
+                    for (c in 3 downTo 1) {
+                        if (!_isServiceRunning.value) break
+                        updateNotification("Next in ${c}s: Preparing to dial ${nextContact.name} (#${nextContact.priorityRank})...")
+                        delay(1200L)
+                    }
+
+                    // 4. Verify line is truly idle before firing next call
+                    var idleWaitCount = 0
+                    while (_isServiceRunning.value && isPhoneInCall() && idleWaitCount < 4) {
+                        Log.w("EmergencyService", "Modem line still settling, waiting additional 1s before dialing...")
+                        updateNotification("Waiting for line to clear before calling ${nextContact.name}...")
+                        delay(1000L)
+                        idleWaitCount++
+                    }
+                }
+            }
+
+            if (_isServiceRunning.value) {
+                updateNotification("Sequential escalation finished (${contacts.size} contacts dialed).")
+                Log.i("EmergencyService", "Sequential escalation completed for all ${contacts.size} contacts.")
+            }
+        }
+    }
+
+    private fun updateNotification(contentText: String) {
+        try {
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            manager?.notify(NOTIFICATION_ID, buildNotification(contentText))
+        } catch (e: Exception) {
+            Log.e("EmergencyService", "Failed to update notification: ${e.localizedMessage}")
         }
     }
 
     private fun makeEmergencyPhoneCall(phoneNumber: String) {
         val cleanPhone = com.womensafety.sos.data.util.PhoneUtils.sanitizePhoneNumber(phoneNumber)
         if (cleanPhone.isBlank()) return
+
+        try {
+            // 1. Direct TelecomManager placeCall (bypasses background activity start restrictions)
+            val telecomManager = getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+            if (checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED && telecomManager != null) {
+                val uri = Uri.fromParts("tel", cleanPhone, null)
+                val extras = Bundle().apply {
+                    putBoolean(TelecomManager.EXTRA_START_CALL_WITH_SPEAKERPHONE, true)
+                }
+                telecomManager.placeCall(uri, extras)
+                Log.i("EmergencyService", "Successfully placed call via TelecomManager to $cleanPhone")
+                return
+            }
+        } catch (e: Exception) {
+            Log.w("EmergencyService", "TelecomManager.placeCall failed, trying ACTION_CALL: ${e.localizedMessage}")
+        }
+
         try {
             val callIntent = Intent(Intent.ACTION_CALL).apply {
                 data = Uri.parse("tel:$cleanPhone")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
             startActivity(callIntent)
         } catch (e: Exception) {
-            Log.e("EmergencyService", "Call permission absent or call failed, falling back to dialer: ${e.localizedMessage}")
+            Log.e("EmergencyService", "ACTION_CALL failed, falling back to DIAL: ${e.localizedMessage}")
             val dialIntent = Intent(Intent.ACTION_DIAL).apply {
                 data = Uri.parse("tel:$cleanPhone")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
             startActivity(dialIntent)
         }
@@ -244,7 +390,9 @@ class EmergencyForegroundService : Service() {
         autoCallJob?.cancel()
 
         try {
-            fusedLocationClient.removeLocationUpdates(locationCallback)
+            if (::locationCallback.isInitialized) {
+                fusedLocationClient.removeLocationUpdates(locationCallback)
+            }
         } catch (e: Exception) {
             Log.e("EmergencyService", "Remove location updates error: ${e.localizedMessage}")
         }

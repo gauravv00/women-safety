@@ -62,9 +62,24 @@ class SettingsViewModel(
 
     fun setBatteryAware(enabled: Boolean) { prefsRepository.updateBatteryAware(enabled) }
 
+    fun setDarkMode(enabled: Boolean) { prefsRepository.updateDarkMode(enabled) }
+
     fun setGuardianMonitoring(enabled: Boolean, context: Context) {
         prefsRepository.updateGuardianMonitoring(enabled)
         if (enabled) GuardianMonitorService.start(context) else GuardianMonitorService.stop(context)
+    }
+
+    fun logout(context: Context, onLoggedOut: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                com.womensafety.sos.ui.screens.login.LoginPreferences.clearLogin(context)
+                ServiceLocator.authManager.signOut()
+            } catch (e: Exception) {
+                // Ignore
+            } finally {
+                onLoggedOut()
+            }
+        }
     }
 
     fun updateDisplayName(name: String) {

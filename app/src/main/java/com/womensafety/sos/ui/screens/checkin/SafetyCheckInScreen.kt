@@ -65,8 +65,44 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.womensafety.sos.ui.components.AppTopBar
 import com.womensafety.sos.ui.screens.home.HomeViewModel
+import com.womensafety.sos.ui.components.JhumkaWatermarkBackground
+import com.womensafety.sos.ui.theme.JhumkaBlushBackground
+import com.womensafety.sos.ui.theme.JhumkaBorder
+import com.womensafety.sos.ui.theme.JhumkaCrimsonRed
+import com.womensafety.sos.ui.theme.JhumkaCrimsonContainer
+import com.womensafety.sos.ui.theme.JhumkaPinkContainer
+import com.womensafety.sos.ui.theme.JhumkaPinkPrimary
+import com.womensafety.sos.ui.theme.JhumkaSafetyGreen
+import com.womensafety.sos.ui.theme.JhumkaSurface
+import com.womensafety.sos.ui.theme.JhumkaSurfaceVariant
+import com.womensafety.sos.ui.theme.JhumkaTextPrimary
+import com.womensafety.sos.ui.theme.JhumkaTextSecondary
 import com.womensafety.sos.ui.theme.AlertRed
+import com.womensafety.sos.ui.components.JhumkaWatermarkBackground
+import com.womensafety.sos.ui.theme.JhumkaBlushBackground
+import com.womensafety.sos.ui.theme.JhumkaBorder
+import com.womensafety.sos.ui.theme.JhumkaCrimsonRed
+import com.womensafety.sos.ui.theme.JhumkaCrimsonContainer
+import com.womensafety.sos.ui.theme.JhumkaPinkContainer
+import com.womensafety.sos.ui.theme.JhumkaPinkPrimary
+import com.womensafety.sos.ui.theme.JhumkaSafetyGreen
+import com.womensafety.sos.ui.theme.JhumkaSurface
+import com.womensafety.sos.ui.theme.JhumkaSurfaceVariant
+import com.womensafety.sos.ui.theme.JhumkaTextPrimary
+import com.womensafety.sos.ui.theme.JhumkaTextSecondary
 import com.womensafety.sos.ui.theme.AlertRedGradientEnd
+import com.womensafety.sos.ui.components.JhumkaWatermarkBackground
+import com.womensafety.sos.ui.theme.JhumkaBlushBackground
+import com.womensafety.sos.ui.theme.JhumkaBorder
+import com.womensafety.sos.ui.theme.JhumkaCrimsonRed
+import com.womensafety.sos.ui.theme.JhumkaCrimsonContainer
+import com.womensafety.sos.ui.theme.JhumkaPinkContainer
+import com.womensafety.sos.ui.theme.JhumkaPinkPrimary
+import com.womensafety.sos.ui.theme.JhumkaSafetyGreen
+import com.womensafety.sos.ui.theme.JhumkaSurface
+import com.womensafety.sos.ui.theme.JhumkaSurfaceVariant
+import com.womensafety.sos.ui.theme.JhumkaTextPrimary
+import com.womensafety.sos.ui.theme.JhumkaTextSecondary
 import com.womensafety.sos.ui.theme.AlertRedGradientStart
 import com.womensafety.sos.ui.theme.DarkBackground
 import com.womensafety.sos.ui.theme.DarkCardBorder
@@ -106,16 +142,18 @@ fun SafetyCheckInScreen(
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = DarkBackground
+        containerColor = JhumkaBlushBackground
     ) { paddingValues ->
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(DarkBackground)
+                .background(JhumkaBlushBackground)
                 .imePadding(),
             contentAlignment = Alignment.Center
         ) {
+            JhumkaWatermarkBackground(modifier = Modifier.fillMaxSize()) {}
+
             val screenWidth = maxWidth
             val screenHeight = maxHeight
             val isLandscape = screenWidth > screenHeight && screenHeight < 600.dp
@@ -155,7 +193,7 @@ fun SafetyCheckInScreen(
                             else
                                 "Auto-SOS will trigger if you don't check in before time runs out.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondaryDark,
+                            color = JhumkaTextSecondary,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(bottom = 10.dp)
                         )
@@ -194,13 +232,13 @@ fun SafetyCheckInScreen(
                             text = "Walk Safe Countdown",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = JhumkaTextPrimary
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = "Set a duration for your walk home. If you don't check in safely before 00:00, the app triggers emergency SOS & broadcasts your GPS to guardians.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondaryDark,
+                            color = JhumkaTextSecondary,
                             textAlign = TextAlign.Center,
                             lineHeight = 20.sp
                         )
@@ -242,7 +280,7 @@ fun TimerDisplayCard(
     modifier: Modifier = Modifier
 ) {
     val cardBackground by animateColorAsState(
-        targetValue = if (isTimerRunning) DarkSurfaceVariant else DarkSurface,
+        targetValue = if (isTimerRunning) JhumkaPinkContainer.copy(alpha = 0.4f) else JhumkaSurface,
         animationSpec = tween(400),
         label = "TimerCardBg"
     )
@@ -252,7 +290,7 @@ fun TimerDisplayCard(
         shape = RoundedCornerShape(22.dp),
         border = BorderStroke(
             width = 1.dp,
-            color = if (isTimerRunning) AlertRed.copy(alpha = 0.5f) else DarkCardBorder
+            color = if (isTimerRunning) JhumkaCrimsonRed.copy(alpha = 0.6f) else JhumkaBorder
         ),
         modifier = modifier
     ) {
@@ -267,12 +305,12 @@ fun TimerDisplayCard(
                     .size(64.dp)
                     .clip(CircleShape)
                     .background(
-                        if (isTimerRunning) AlertRed.copy(alpha = 0.15f)
-                        else TrustBlue.copy(alpha = 0.12f)
+                        if (isTimerRunning) JhumkaCrimsonContainer
+                        else JhumkaPinkContainer
                     )
                     .border(
                         1.dp,
-                        if (isTimerRunning) AlertRed.copy(alpha = 0.4f) else TrustBlue.copy(alpha = 0.3f),
+                        if (isTimerRunning) JhumkaCrimsonRed.copy(alpha = 0.5f) else JhumkaPinkPrimary.copy(alpha = 0.4f),
                         CircleShape
                     ),
                 contentAlignment = Alignment.Center
@@ -280,7 +318,7 @@ fun TimerDisplayCard(
                 Icon(
                     imageVector = Icons.Default.Timer,
                     contentDescription = null,
-                    tint = if (isTimerRunning) AlertRed else TrustBlue,
+                    tint = if (isTimerRunning) JhumkaCrimsonRed else JhumkaPinkPrimary,
                     modifier = Modifier.size(32.dp)
                 )
             }
@@ -292,7 +330,7 @@ fun TimerDisplayCard(
                 style = MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 2.sp,
-                color = if (isTimerRunning) AlertRed else Color.White
+                color = if (isTimerRunning) JhumkaCrimsonRed else JhumkaTextPrimary
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -305,13 +343,13 @@ fun TimerDisplayCard(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(if (isTimerRunning) AlertRed else SafetyGreen)
+                        .background(if (isTimerRunning) JhumkaCrimsonRed else JhumkaSafetyGreen)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = if (isTimerRunning) "MONITORING ACTIVE • DO NOT CLOSE" else "READY TO START",
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (isTimerRunning) AlertRed else SafetyGreen,
+                    color = if (isTimerRunning) JhumkaCrimsonRed else JhumkaSafetyGreen,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.8.sp
                 )
@@ -336,7 +374,7 @@ fun CheckInControls(
         ) {
             Text(
                 text = "Quick Presets:",
-                color = Color.White,
+                color = JhumkaTextPrimary,
                 fontWeight = FontWeight.SemiBold,
                 style = MaterialTheme.typography.titleSmall
             )
@@ -371,12 +409,12 @@ fun CheckInControls(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = TrustBlue,
-                        unfocusedBorderColor = DarkCardBorder,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedContainerColor = DarkSurface,
-                        unfocusedContainerColor = DarkSurface
+                        focusedBorderColor = JhumkaPinkPrimary,
+                        unfocusedBorderColor = JhumkaBorder,
+                        focusedTextColor = JhumkaTextPrimary,
+                        unfocusedTextColor = JhumkaTextPrimary,
+                        focusedContainerColor = JhumkaSurface,
+                        unfocusedContainerColor = JhumkaSurface
                     ),
                     modifier = Modifier.weight(1f)
                 )
@@ -390,8 +428,8 @@ fun CheckInControls(
                     },
                     enabled = customMin in 1..180,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = TrustBlue,
-                        disabledContainerColor = TrustBlue.copy(alpha = 0.4f)
+                        containerColor = JhumkaPinkPrimary,
+                        disabledContainerColor = JhumkaPinkPrimary.copy(alpha = 0.4f)
                     ),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.height(56.dp)
@@ -411,10 +449,10 @@ fun CheckInControls(
                         .fillMaxWidth()
                         .height(50.dp),
                     shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, DarkCardBorder),
+                    border = BorderStroke(1.dp, JhumkaBorder),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = DarkSurfaceVariant,
-                        contentColor = Color.White
+                        containerColor = JhumkaSurface,
+                        contentColor = JhumkaTextPrimary
                     )
                 ) {
                     Icon(
@@ -468,10 +506,10 @@ fun CheckInControls(
                         .fillMaxWidth()
                         .height(50.dp),
                     shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, DarkCardBorder),
+                    border = BorderStroke(1.dp, JhumkaBorder),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = DarkSurfaceVariant,
-                        contentColor = Color.White
+                        containerColor = JhumkaSurface,
+                        contentColor = JhumkaTextPrimary
                     )
                 ) {
                     Icon(
@@ -499,14 +537,14 @@ fun TimerPresetButton(
 ) {
     Button(
         onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
-        border = BorderStroke(1.dp, DarkCardBorder),
+        colors = ButtonDefaults.buttonColors(containerColor = JhumkaSurface),
+        border = BorderStroke(1.dp, JhumkaBorder),
         shape = RoundedCornerShape(14.dp),
         modifier = modifier.height(50.dp)
     ) {
         Text(
             text = label,
-            color = Color.White,
+            color = JhumkaTextPrimary,
             fontWeight = FontWeight.Bold,
             fontSize = 13.sp
         )

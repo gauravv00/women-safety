@@ -18,6 +18,7 @@ import com.womensafety.sos.service.EmergencyForegroundService
 import com.womensafety.sos.service.GuardianMonitorService
 import com.womensafety.sos.service.ShakeDetector
 import com.womensafety.sos.service.SosTriggerHelper
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,14 +35,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+            statusBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
         )
         super.onCreate(savedInstanceState)
 
         // Initialize guardian background monitor if enabled
-        val settings = ServiceLocator.userPreferences.settings.value
-        if (settings.guardianMonitoringEnabled) {
+        val initSettings = ServiceLocator.userPreferences.settings.value
+        if (initSettings.guardianMonitoringEnabled) {
             GuardianMonitorService.start(this)
         }
 
@@ -49,7 +50,8 @@ class MainActivity : ComponentActivity() {
         initShakeDetection()
 
         setContent {
-            WomenSafetyTheme {
+            val settings by ServiceLocator.userPreferences.settings.collectAsState()
+            WomenSafetyTheme(darkTheme = settings.darkModeEnabled) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -65,7 +67,11 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     } else {
-                        MainNavGraph()
+                        MainNavGraph(
+                            onLogout = {
+                                loginCompleted = false
+                            }
+                        )
                     }
                 }
             }

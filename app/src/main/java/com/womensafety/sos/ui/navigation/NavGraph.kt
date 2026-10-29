@@ -1,7 +1,14 @@
 package com.womensafety.sos.ui.navigation
+import com.womensafety.sos.ui.theme.JhumkaBlushBackground
+import com.womensafety.sos.ui.theme.JhumkaBorder
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -56,6 +63,11 @@ import com.womensafety.sos.ui.screens.map.LiveTrackingScreen
 import com.womensafety.sos.ui.screens.notifications.NotificationsScreen
 import com.womensafety.sos.ui.screens.settings.SettingsScreen
 import com.womensafety.sos.ui.theme.AlertRed
+import com.womensafety.sos.ui.theme.JhumkaPinkPrimary
+import com.womensafety.sos.ui.theme.JhumkaPinkContainer
+import com.womensafety.sos.ui.theme.JhumkaTextTertiary
+import com.womensafety.sos.ui.theme.JhumkaTextPrimary
+import com.womensafety.sos.ui.theme.JhumkaSurface
 import com.womensafety.sos.ui.theme.DarkSurface
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -74,7 +86,8 @@ data class BottomNavItem(
 
 @Composable
 fun MainNavGraph(
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    onLogout: () -> Unit = {}
 ) {
     val bottomNavItems = listOf(
         BottomNavItem(Screen.Home.route, "SOS", Icons.Default.Shield),
@@ -135,7 +148,7 @@ fun MainNavGraph(
                     .weight(1f)
                     .fillMaxHeight()
             ) {
-                NavHostContainer(navController = navController)
+                NavHostContainer(navController = navController, onLogout = onLogout)
             }
         }
     }
@@ -148,46 +161,63 @@ fun AppBottomBar(
     onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        color = DarkSurface,
-        border = BorderStroke(1.dp, DarkCardBorder),
-        modifier = modifier.fillMaxWidth()
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center
     ) {
-        NavigationBar(
-            modifier = Modifier.height(68.dp),
-            containerColor = DarkSurface,
-            windowInsets = NavigationBarDefaults.windowInsets
+        Surface(
+            shape = RoundedCornerShape(32.dp),
+            color = JhumkaSurface,
+            border = BorderStroke(1.dp, JhumkaBorder),
+            shadowElevation = 8.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
         ) {
-            items.forEach { item ->
-                val isSelected = currentRoute == item.route
-                val activeColor = if (item.route == Screen.Home.route) AlertRed else TrustBlue
-                NavigationBarItem(
-                    icon = {
-                        Icon(
-                            imageVector = item.icon,
-                            contentDescription = item.title,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    },
-                    label = {
-                        Text(
-                            text = item.title,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    },
-                    selected = isSelected,
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = activeColor,
-                        selectedTextColor = activeColor,
-                        unselectedIconColor = Color.Gray,
-                        unselectedTextColor = Color.Gray,
-                        indicatorColor = activeColor.copy(alpha = 0.15f)
-                    ),
-                    onClick = { onNavigate(item.route) }
-                )
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceAround
+            ) {
+                items.forEach { item ->
+                    val isSelected = currentRoute == item.route
+                    val activeColor = if (item.route == Screen.Home.route && isSelected) JhumkaPinkPrimary else JhumkaPinkPrimary
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (isSelected) JhumkaPinkContainer else Color.Transparent)
+                            .clickable { onNavigate(item.route) }
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = item.icon,
+                                contentDescription = item.title,
+                                tint = if (isSelected) activeColor else JhumkaTextTertiary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            if (isSelected) {
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = item.title,
+                                    color = activeColor,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -201,30 +231,32 @@ fun AppRail(
     modifier: Modifier = Modifier
 ) {
     NavigationRail(
-        containerColor = DarkSurface,
-        contentColor = Color.White,
+        containerColor = JhumkaBlushBackground,
+        contentColor = JhumkaTextPrimary,
         modifier = modifier.fillMaxHeight()
     ) {
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         items.forEach { item ->
             val isSelected = currentRoute == item.route
+            val activeColor = JhumkaPinkPrimary
             NavigationRailItem(
                 icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
                 label = {
                     Text(
                         text = item.title,
                         style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 },
                 selected = isSelected,
                 colors = NavigationRailItemDefaults.colors(
-                    selectedIconColor = AlertRed,
-                    selectedTextColor = AlertRed,
-                    unselectedIconColor = Color.Gray,
-                    unselectedTextColor = Color.Gray,
-                    indicatorColor = Color.Transparent
+                    selectedIconColor = activeColor,
+                    selectedTextColor = activeColor,
+                    unselectedIconColor = JhumkaTextTertiary,
+                    unselectedTextColor = JhumkaTextTertiary,
+                    indicatorColor = JhumkaPinkContainer
                 ),
                 onClick = { onNavigate(item.route) }
             )
@@ -321,6 +353,7 @@ private fun NavPreviewWrapper() {
 @Composable
 fun NavHostContainer(
     navController: NavHostController,
+    onLogout: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     NavHost(
@@ -334,6 +367,7 @@ fun NavHostContainer(
                 onNavigateToFakeCall = { navController.navigate(Screen.FakeCall.route) },
                 onNavigateToCheckIn = { navController.navigate(Screen.CheckIn.route) },
                 onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) },
+                onNavigateToContacts = { navController.navigate(Screen.Contacts.route) },
                 onNavigateToTracking = { emergencyId ->
                     if (emergencyId.isNotBlank()) {
                         navController.navigate(Screen.Map.createRoute(emergencyId))
@@ -442,7 +476,8 @@ fun NavHostContainer(
                     } else {
                         navController.navigate(Screen.Home.route)
                     }
-                }
+                },
+                onLogout = onLogout
             )
         }
 

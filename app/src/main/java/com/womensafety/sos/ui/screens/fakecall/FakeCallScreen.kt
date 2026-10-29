@@ -85,6 +85,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.womensafety.sos.ui.components.AppTopBar
+import com.womensafety.sos.ui.components.JhumkaWatermarkBackground
+import com.womensafety.sos.ui.theme.JhumkaBlushBackground
+import com.womensafety.sos.ui.theme.JhumkaBorder
+import com.womensafety.sos.ui.theme.JhumkaCrimsonRed
+import com.womensafety.sos.ui.theme.JhumkaPinkContainer
+import com.womensafety.sos.ui.theme.JhumkaPinkPrimary
+import com.womensafety.sos.ui.theme.JhumkaSafetyGreen
+import com.womensafety.sos.ui.theme.JhumkaSurface
+import com.womensafety.sos.ui.theme.JhumkaSurfaceVariant
+import com.womensafety.sos.ui.theme.JhumkaTextPrimary
+import com.womensafety.sos.ui.theme.JhumkaTextSecondary
+import com.womensafety.sos.ui.theme.JhumkaTextTertiary
+import androidx.compose.foundation.BorderStroke
 import com.womensafety.sos.ui.theme.AlertRed
 import com.womensafety.sos.ui.theme.DarkBackground
 import com.womensafety.sos.ui.theme.DarkSurfaceVariant
@@ -220,14 +233,17 @@ fun FakeCallSetupView(
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
-        Box(
+        JhumkaWatermarkBackground(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(DarkBackground)
-                .imePadding(),
-            contentAlignment = Alignment.TopCenter
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .imePadding(),
+                contentAlignment = Alignment.TopCenter
+            ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -237,7 +253,7 @@ fun FakeCallSetupView(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
+                    colors = CardDefaults.cardColors(containerColor = JhumkaSurface),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -246,13 +262,13 @@ fun FakeCallSetupView(
                             text = "Discreet Situation Exit",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = JhumkaTextPrimary
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Simulate an authentic incoming phone call with live audio conversation and interactive in-call controls to gracefully leave unsafe settings.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.LightGray
+                            color = JhumkaTextSecondary
                         )
                     }
                 }
@@ -262,7 +278,7 @@ fun FakeCallSetupView(
                     text = "Quick Presets:",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.LightGray
+                    color = JhumkaTextSecondary
                 )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -281,10 +297,10 @@ fun FakeCallSetupView(
                             },
                             label = { Text(preset.name) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = TrustBlue,
-                                selectedLabelColor = Color.White,
-                                containerColor = DarkSurfaceVariant,
-                                labelColor = Color.LightGray
+                                selectedContainerColor = JhumkaPinkContainer,
+                                selectedLabelColor = JhumkaPinkPrimary,
+                                containerColor = JhumkaSurface,
+                                labelColor = JhumkaTextSecondary
                             )
                         )
                     }
@@ -301,10 +317,12 @@ fun FakeCallSetupView(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = TrustBlue,
-                        unfocusedBorderColor = Color.DarkGray,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        focusedBorderColor = JhumkaPinkPrimary,
+                        unfocusedBorderColor = JhumkaBorder,
+                        focusedTextColor = JhumkaTextPrimary,
+                        unfocusedTextColor = JhumkaTextPrimary,
+                        focusedLabelColor = JhumkaPinkPrimary,
+                        unfocusedLabelColor = JhumkaTextSecondary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -319,10 +337,12 @@ fun FakeCallSetupView(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = TrustBlue,
-                        unfocusedBorderColor = Color.DarkGray,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        focusedBorderColor = JhumkaPinkPrimary,
+                        unfocusedBorderColor = JhumkaBorder,
+                        focusedTextColor = JhumkaTextPrimary,
+                        unfocusedTextColor = JhumkaTextPrimary,
+                        focusedLabelColor = JhumkaPinkPrimary,
+                        unfocusedLabelColor = JhumkaTextSecondary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -362,27 +382,30 @@ fun FakeCallSetupView(
                     ) {
                         Button(
                             onClick = { onSchedule(5) },
-                            colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
+                            colors = ButtonDefaults.buttonColors(containerColor = JhumkaSurface),
+                            border = BorderStroke(1.dp, JhumkaBorder),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("In 5s", color = Color.White)
+                            Text("In 5s", color = JhumkaTextPrimary, fontWeight = FontWeight.Bold)
                         }
                         Button(
                             onClick = { onSchedule(15) },
-                            colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
+                            colors = ButtonDefaults.buttonColors(containerColor = JhumkaSurface),
+                            border = BorderStroke(1.dp, JhumkaBorder),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("In 15s", color = Color.White)
+                            Text("In 15s", color = JhumkaTextPrimary, fontWeight = FontWeight.Bold)
                         }
                         Button(
                             onClick = { onSchedule(30) },
-                            colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
+                            colors = ButtonDefaults.buttonColors(containerColor = JhumkaSurface),
+                            border = BorderStroke(1.dp, JhumkaBorder),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("In 30s", color = Color.White)
+                            Text("In 30s", color = JhumkaTextPrimary, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -404,6 +427,7 @@ fun FakeCallSetupView(
             }
         }
     }
+}
 }
 
 @Composable
@@ -481,7 +505,7 @@ fun IncomingCallView(
                             text = callerName,
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = JhumkaTextPrimary
                         )
                         Text(
                             text = callerNumber,
@@ -507,7 +531,7 @@ fun IncomingCallView(
                             Text(
                                 text = callerTag,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.LightGray
+                                color = JhumkaTextSecondary
                             )
                         }
                         Text(
@@ -653,7 +677,7 @@ fun IncomingCallView(
                         Text(
                             text = callerTag,
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.LightGray
+                            color = JhumkaTextSecondary
                         )
                     }
 
@@ -1099,7 +1123,7 @@ fun CallTileButton(
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = label,
-            color = Color.LightGray,
+            color = JhumkaTextSecondary,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium
         )

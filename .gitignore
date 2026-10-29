@@ -10,7 +10,8 @@
 .cxx
 local.properties
 *.log
-*.png
+/*.png
+!app/src/main/res/**/*.png
 .vscode/
 app/google-services.json
 

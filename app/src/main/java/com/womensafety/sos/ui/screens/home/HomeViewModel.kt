@@ -15,6 +15,7 @@ import com.womensafety.sos.service.EmergencyForegroundService
 import com.womensafety.sos.service.EmergencySosService
 import com.womensafety.sos.service.ShakeDetector
 import com.womensafety.sos.service.SosTriggerHelper
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +26,20 @@ import kotlinx.coroutines.launch
 class HomeViewModel(
     private val repository: SafetyRepository = ServiceLocator.repository
 ) : ViewModel() {
+
+    val userName: StateFlow<String> = ServiceLocator.userPreferences.settings
+        .map { settings ->
+            val prefName = settings.displayName
+            val firebaseUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            val firebaseName = firebaseUser?.displayName
+            when {
+                prefName.isNotBlank() && prefName != "My Phone" && prefName != "User" -> prefName
+                !firebaseName.isNullOrBlank() -> firebaseName
+                prefName.isNotBlank() -> prefName
+                else -> "User"
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "User")
 
     val activeIncident: StateFlow<IncidentLog?> = repository.getActiveIncident()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)

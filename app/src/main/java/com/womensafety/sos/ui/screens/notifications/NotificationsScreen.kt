@@ -66,6 +66,19 @@ import com.womensafety.sos.data.model.NotificationItem
 import com.womensafety.sos.data.model.NotificationStatus
 import com.womensafety.sos.data.model.NotificationType
 import com.womensafety.sos.ui.components.AppTopBar
+import com.womensafety.sos.ui.components.JhumkaWatermarkBackground
+import com.womensafety.sos.ui.theme.JhumkaBlushBackground
+import com.womensafety.sos.ui.theme.JhumkaBorder
+import com.womensafety.sos.ui.theme.JhumkaCrimsonRed
+import com.womensafety.sos.ui.theme.JhumkaPinkContainer
+import com.womensafety.sos.ui.theme.JhumkaPinkPrimary
+import com.womensafety.sos.ui.theme.JhumkaSafetyGreen
+import com.womensafety.sos.ui.theme.JhumkaSurface
+import com.womensafety.sos.ui.theme.JhumkaSurfaceVariant
+import com.womensafety.sos.ui.theme.JhumkaTextPrimary
+import com.womensafety.sos.ui.theme.JhumkaTextSecondary
+import com.womensafety.sos.ui.theme.JhumkaTextTertiary
+import androidx.compose.foundation.BorderStroke
 import com.womensafety.sos.ui.theme.AlertRed
 import com.womensafety.sos.ui.theme.DarkBackground
 import com.womensafety.sos.ui.theme.DarkSurface
@@ -103,7 +116,7 @@ fun NotificationsScreen(
                             Icon(
                                 imageVector = Icons.Default.DoneAll,
                                 contentDescription = "Mark All Read",
-                                tint = TrustBlue
+                                tint = JhumkaPinkPrimary
                             )
                         }
                     }
@@ -113,17 +126,19 @@ fun NotificationsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
-        Box(
+        JhumkaWatermarkBackground(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(DarkBackground),
-            contentAlignment = Alignment.TopCenter
         ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopCenter
+            ) {
             when (val state = uiState) {
                 is NotificationsUiState.Loading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = TrustBlue)
+                        CircularProgressIndicator(color = JhumkaPinkPrimary)
                     }
                 }
                 is NotificationsUiState.Error -> {
@@ -173,6 +188,7 @@ fun NotificationsScreen(
             }
         }
     }
+}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -315,13 +331,13 @@ fun NotificationCardContent(
                                 text = item.fromName.ifBlank { item.title.ifBlank { "Ward" } },
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = JhumkaTextPrimary
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = item.body,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.LightGray
+                                color = JhumkaTextSecondary
                             )
                         }
 
@@ -340,7 +356,7 @@ fun NotificationCardContent(
 
                     Button(
                         onClick = onTrackLive,
-                        colors = ButtonDefaults.buttonColors(containerColor = TrustBlue),
+                        colors = ButtonDefaults.buttonColors(containerColor = JhumkaPinkPrimary),
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -354,7 +370,8 @@ fun NotificationCardContent(
 
         NotificationType.RESOLVED -> {
             Card(
-                colors = CardDefaults.cardColors(containerColor = SafetyGreen.copy(alpha = 0.16f)),
+                colors = CardDefaults.cardColors(containerColor = JhumkaSurface),
+                border = BorderStroke(1.dp, SafetyGreen.copy(alpha = 0.4f)),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -416,13 +433,13 @@ fun NotificationCardContent(
                                 text = item.title.ifBlank { "Emergency Resolved" },
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = JhumkaTextPrimary
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = item.body,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.LightGray
+                                color = JhumkaTextSecondary
                             )
                         }
 
@@ -454,7 +471,7 @@ fun NotificationCardContent(
         }
 
         else -> {
-            val cardColor = if (!item.read) DarkSurfaceVariant else DarkSurface
+            val cardColor = if (!item.read) JhumkaPinkContainer.copy(alpha = 0.4f) else JhumkaSurface
             val typeIcon: ImageVector = when (item.type) {
                 NotificationType.PAIR_ACCEPTED -> Icons.Default.CheckCircle
                 NotificationType.PAIR_REJECTED -> Icons.Default.Close
@@ -468,6 +485,7 @@ fun NotificationCardContent(
 
             Card(
                 colors = CardDefaults.cardColors(containerColor = cardColor),
+                border = BorderStroke(1.dp, if (!item.read) JhumkaPinkPrimary.copy(alpha = 0.4f) else JhumkaBorder),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -524,7 +542,7 @@ fun NotificationCardContent(
                             Text(
                                 text = item.body,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.LightGray
+                                color = JhumkaTextSecondary
                             )
                         }
 

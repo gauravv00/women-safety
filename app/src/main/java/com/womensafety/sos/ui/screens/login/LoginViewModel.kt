@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit
 
 enum class LoginStep {
     GOOGLE_SIGN_IN,
+    EMAIL_INPUT,
     PHONE_INPUT,
     OTP_INPUT,
     NAME_INPUT
@@ -59,6 +60,18 @@ class LoginViewModel : ViewModel() {
     private val _resendCountdown = MutableStateFlow(0)
     val resendCountdown: StateFlow<Int> = _resendCountdown.asStateFlow()
 
+    private val _email = MutableStateFlow("")
+    val email: StateFlow<String> = _email.asStateFlow()
+
+    private val _password = MutableStateFlow("")
+    val password: StateFlow<String> = _password.asStateFlow()
+
+    private val _isRegistering = MutableStateFlow(false)
+    val isRegistering: StateFlow<Boolean> = _isRegistering.asStateFlow()
+
+    private val _isPasswordVisible = MutableStateFlow(false)
+    val isPasswordVisible: StateFlow<Boolean> = _isPasswordVisible.asStateFlow()
+
     private var verificationId: String? = null
     private var resendToken: PhoneAuthProvider.ForceResendingToken? = null
     private var timerJob: Job? = null
@@ -81,6 +94,28 @@ class LoginViewModel : ViewModel() {
         _errorMessage.value = null
     }
 
+    fun setEmail(email: String) {
+        _email.value = email
+    }
+
+    fun setPassword(password: String) {
+        _password.value = password
+    }
+
+    fun setIsRegistering(isRegister: Boolean) {
+        _isRegistering.value = isRegister
+        _errorMessage.value = null
+    }
+
+    fun togglePasswordVisibility() {
+        _isPasswordVisible.value = !_isPasswordVisible.value
+    }
+
+    fun goToEmailInput() {
+        _errorMessage.value = null
+        _step.value = LoginStep.EMAIL_INPUT
+    }
+
     fun goToPhoneInput() {
         _errorMessage.value = null
         _step.value = LoginStep.PHONE_INPUT
@@ -91,10 +126,81 @@ class LoginViewModel : ViewModel() {
         _step.value = LoginStep.GOOGLE_SIGN_IN
     }
 
+    fun signInWithEmail() {
+        val email = _email.value.trim()
+        val password = _password.value.trim()
+
+        if (email.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            _errorMessage.value = "Please enter a valid email address."
+            return
+        }
+        if (password.length < 6) {
+            _errorMessage.value = "Password must be at least 6 characters."
+            return
+        }
+
+        _isLoading.value = true
+        _errorMessage.value = null
+
+        viewModelScope.launch {
+            try {
+                if (_isRegistering.value) {
+                    val result = auth.createUserWithEmailAndPassword(email, password).await()
+                    _isLoading.value = false
+                    val defaultName = email.substringBefore("@").replaceFirstChar { it.uppercase() }
+                    _displayName.value = defaultName
+                    _step.value = LoginStep.NAME_INPUT
+                } else {
+                    try {
+                        val result = auth.signInWithEmailAndPassword(email, password).await()
+                        _isLoading.value = false
+                        val resolvedName = result.user?.displayName ?: email.substringBefore("@").replaceFirstChar { it.uppercase() }
+                        _displayName.value = resolvedName
+                        _step.value = LoginStep.NAME_INPUT
+                    } catch (e: Exception) {
+                        val msg = e.localizedMessage ?: ""
+                        if (msg.contains("user-not-found", ignoreCase = true) || msg.contains("no user record", ignoreCase = true)) {
+                            val regResult = auth.createUserWithEmailAndPassword(email, password).await()
+                            _isLoading.value = false
+                            val defaultName = email.substringBefore("@").replaceFirstChar { it.uppercase() }
+                            _displayName.value = defaultName
+                            _step.value = LoginStep.NAME_INPUT
+                        } else {
+                            throw e
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _isLoading.value = false
+                Log.e("LoginViewModel", "Email sign-in failed", e)
+                val msg = e.localizedMessage ?: "Email authentication failed."
+                _errorMessage.value = when {
+                    msg.contains("CONFIGURATION_NOT_FOUND", ignoreCase = true) ||
+                    msg.contains("OPERATION_NOT_ALLOWED", ignoreCase = true) ||
+                    msg.contains("operation is not allowed", ignoreCase = true) ||
+                    msg.contains("provider is disabled", ignoreCase = true) ->
+                        "Email/Password is disabled in Firebase Console. Go to Firebase Console > Authentication > Sign-in method > Email/Password: Turn ON 'Email/Password' (leave 'Email link' OFF) and click Save."
+                    msg.contains("wrong-password", ignoreCase = true) || msg.contains("invalid-credential", ignoreCase = true) ->
+                        "Incorrect password or invalid credentials. Please check your password or switch to 'Register'."
+                    msg.contains("email-already-in-use", ignoreCase = true) ->
+                        "An account with this email already exists. Switch to 'Sign In' or check your password."
+                    msg.contains("weak-password", ignoreCase = true) ->
+                        "Password is too weak. Please use at least 6 characters."
+                    else -> msg
+                }
+            }
+        }
+    }
+
     fun changePhoneNumber() {
         _otpCode.value = ""
         _errorMessage.value = null
         _step.value = LoginStep.PHONE_INPUT
+    }
+
+    fun skipPhoneVerification() {
+        _errorMessage.value = null
+        _step.value = LoginStep.NAME_INPUT
     }
 
     fun skipLogin(context: Context, onFinished: () -> Unit) {
@@ -209,6 +315,10 @@ class LoginViewModel : ViewModel() {
                 Log.e("LoginViewModel", "Phone verification failed", e)
                 val msg = e.localizedMessage ?: "Phone verification failed."
                 _errorMessage.value = when {
+                    msg.contains("BILLING_NOT_ENABLED", ignoreCase = true) || msg.contains("billing", ignoreCase = true) ->
+                        "Firebase SMS sending requires a Blaze plan or Test Numbers. Please add this number under Firebase Console > Authentication > Phone > 'Phone numbers for testing' (with test OTP 123456) or tap 'Skip Phone Verification' below."
+                    msg.contains("TOO_MANY_REQUESTS", ignoreCase = true) || msg.contains("quota", ignoreCase = true) ->
+                        "SMS quota exceeded or too many requests. Please try again later or use Google Sign-In."
                     msg.contains("CONFIGURATION_NOT_FOUND", ignoreCase = true) ->
                         "Phone Auth is disabled in Firebase Console. Enable Phone provider under Authentication > Sign-in method."
                     msg.contains("API_KEY_INVALID", ignoreCase = true) ->

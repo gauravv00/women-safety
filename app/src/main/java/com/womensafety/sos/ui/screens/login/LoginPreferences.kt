@@ -25,4 +25,9 @@ object LoginPreferences {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putBoolean(KEY_GUEST_SKIPPED, true).apply()
     }
+
+    fun clearLogin(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().clear().apply()
+    }
 }

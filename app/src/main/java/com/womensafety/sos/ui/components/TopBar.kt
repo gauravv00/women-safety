@@ -15,14 +15,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.womensafety.sos.R
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -32,16 +35,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.womensafety.sos.ui.theme.AlertRed
-import com.womensafety.sos.ui.theme.DarkCardBorder
-import com.womensafety.sos.ui.theme.DarkSurface
-import com.womensafety.sos.ui.theme.DarkSurfaceVariant
-import com.womensafety.sos.ui.theme.TextSecondaryDark
+import com.womensafety.sos.ui.theme.JhumkaBlushBackground
+import com.womensafety.sos.ui.theme.JhumkaBorder
+import com.womensafety.sos.ui.theme.JhumkaCrimsonContainer
+import com.womensafety.sos.ui.theme.JhumkaCrimsonRed
+import com.womensafety.sos.ui.theme.JhumkaPinkContainer
+import com.womensafety.sos.ui.theme.JhumkaPinkPrimary
+import com.womensafety.sos.ui.theme.JhumkaSurface
+import com.womensafety.sos.ui.theme.JhumkaSurfaceVariant
+import com.womensafety.sos.ui.theme.JhumkaTextPrimary
+import com.womensafety.sos.ui.theme.JhumkaTextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppTopBar(
-    title: String = "WOMEN SAFETY SOS",
+    title: String = "JHUMKA",
     subtitle: String? = null,
     isSosActive: Boolean = false,
     onBackClick: (() -> Unit)? = null,
@@ -55,18 +63,18 @@ fun AppTopBar(
                 Box(
                     modifier = Modifier
                         .padding(start = 12.dp, end = 6.dp)
-                        .size(42.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
-                        .background(DarkSurfaceVariant)
-                        .border(1.dp, DarkCardBorder, CircleShape)
+                        .background(JhumkaSurface)
+                        .border(1.dp, JhumkaBorder, CircleShape)
                         .clickable { onBackClick() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
+                        tint = JhumkaTextPrimary,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -81,20 +89,28 @@ fun AppTopBar(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(if (isSosActive) AlertRed.copy(alpha = 0.2f) else DarkSurfaceVariant)
+                            .background(if (isSosActive) JhumkaCrimsonContainer else JhumkaSurface)
                             .border(
                                 1.dp,
-                                if (isSosActive) AlertRed else DarkCardBorder,
+                                if (isSosActive) JhumkaCrimsonRed else JhumkaBorder,
                                 CircleShape
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Shield,
-                            contentDescription = "Shield",
-                            tint = if (isSosActive) AlertRed else Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        if (isSosActive) {
+                            Icon(
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = "Active SOS",
+                                tint = JhumkaCrimsonRed,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        } else {
+                            Image(
+                                painter = painterResource(id = R.drawable.app_logo),
+                                contentDescription = "Jhumka Logo",
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                 }
@@ -103,14 +119,14 @@ fun AppTopBar(
                         text = title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp,
-                        color = if (isSosActive) AlertRed else Color.White
+                        letterSpacing = 1.0.sp,
+                        color = if (isSosActive) JhumkaCrimsonRed else JhumkaPinkPrimary
                     )
                     if (subtitle != null) {
                         Text(
                             text = subtitle,
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondaryDark
+                            color = JhumkaTextSecondary
                         )
                     }
                 }
@@ -121,10 +137,10 @@ fun AppTopBar(
                 Box(
                     modifier = Modifier
                         .padding(end = 12.dp)
-                        .size(42.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
-                        .background(DarkSurfaceVariant)
-                        .border(1.dp, DarkCardBorder, CircleShape)
+                        .background(JhumkaSurface)
+                        .border(1.dp, JhumkaBorder, CircleShape)
                         .clickable { onNotificationClick() },
                     contentAlignment = Alignment.Center
                 ) {
@@ -132,7 +148,7 @@ fun AppTopBar(
                         badge = {
                             if (unreadNotificationCount > 0) {
                                 Badge(
-                                    containerColor = AlertRed,
+                                    containerColor = JhumkaCrimsonRed,
                                     contentColor = Color.White
                                 ) {
                                     Text(
@@ -147,7 +163,7 @@ fun AppTopBar(
                         Icon(
                             imageVector = Icons.Default.Notifications,
                             contentDescription = "Notifications",
-                            tint = Color.White,
+                            tint = JhumkaTextPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -156,7 +172,7 @@ fun AppTopBar(
             actions?.invoke()
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = DarkSurface
+            containerColor = JhumkaBlushBackground
         ),
         windowInsets = TopAppBarDefaults.windowInsets
     )

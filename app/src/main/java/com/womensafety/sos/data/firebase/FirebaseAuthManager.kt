@@ -117,6 +117,16 @@ class FirebaseAuthManager private constructor(private val context: Context) {
         }
     }
 
+    fun signOut() {
+        try {
+            auth.signOut()
+            _currentUser.value = null
+            Log.d(TAG, "User signed out successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error signing out", e)
+        }
+    }
+
     companion object {
         private const val TAG = "FirebaseAuthManager"
 

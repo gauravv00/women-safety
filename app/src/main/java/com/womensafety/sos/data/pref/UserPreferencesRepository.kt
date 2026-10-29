@@ -16,7 +16,8 @@ data class SafetySettings(
     val batteryAwarePolling: Boolean = true,
     val guardianMonitoringEnabled: Boolean = true,
     val displayName: String = "User",
-    val myPairingCode: String = ""
+    val myPairingCode: String = "",
+    val darkModeEnabled: Boolean = false
 )
 
 class UserPreferencesRepository(context: Context) {
@@ -40,7 +41,8 @@ class UserPreferencesRepository(context: Context) {
             batteryAwarePolling = prefs.getBoolean("battery_aware", true),
             guardianMonitoringEnabled = prefs.getBoolean("guardian_monitoring_enabled", true),
             displayName = prefs.getString("user_display_name", "My Phone") ?: "My Phone",
-            myPairingCode = code
+            myPairingCode = code,
+            darkModeEnabled = prefs.getBoolean("dark_mode_enabled", false)
         )
     }
 
@@ -95,5 +97,10 @@ class UserPreferencesRepository(context: Context) {
     fun updateBatteryAware(enabled: Boolean) {
         prefs.edit().putBoolean("battery_aware", enabled).apply()
         _settings.value = _settings.value.copy(batteryAwarePolling = enabled)
+    }
+
+    fun updateDarkMode(enabled: Boolean) {
+        prefs.edit().putBoolean("dark_mode_enabled", enabled).apply()
+        _settings.value = _settings.value.copy(darkModeEnabled = enabled)
     }
 }
