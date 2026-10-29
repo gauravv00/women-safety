@@ -30,7 +30,7 @@ Provides emergency SOS broadcasts, automated contact escalation, live dual-engin
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
 │                      Background Services                               │
-│  EmergencyForegroundService │ SosTriggerHelper │ ShakeDetector         │
+│  EmergencyForegroundService │ SosTriggerHelper                         │
 │  AudioRecorderService │ AppFirebaseMessagingService                    │
 └────────────────────────────────────────────────────────────────────────┘
 ```
@@ -46,7 +46,7 @@ Provides emergency SOS broadcasts, automated contact escalation, live dual-engin
   - **Interactive Provider Badge**: Floating chip allowing seamless 1-tap switching between Google Maps and OpenStreetMap.
 - **`components.SosButton`**: High-contrast, tactile 2-second hold-to-activate emergency SOS trigger with scale animation and haptic feedback.
 - **`components.EmergencyCallPanel`**: Modal bottom sheet with 1-tap emergency dial buttons for Police (112), Women Helpline (1091), and prioritized trusted contacts.
-- **`screens.home.HomeScreen` & `HomeViewModel`**: Main dashboard with active SOS status, quick action panels (Fake Call, Live GPS, Contacts, Helplines), and shake-trigger listener.
+- **`screens.home.HomeScreen` & `HomeViewModel`**: Main dashboard with active SOS status and quick action panels (Fake Call, Live GPS, Contacts, Helplines).
 - **`screens.map.LiveTrackingScreen` & `LiveTrackingViewModel`**: Live map tracking screen with device GPS telemetry, cached reverse-geocoding (LRU cache), accuracy radius indicator, and external map launcher.
 - **`screens.fakecall.FakeCallScreen` & `FakeCallViewModel`**: Realistic incoming fake call escape tool:
   - Authentic Indian phone number presets (+91 98101 23456, +91 98202 34567, +91 98909 87654).
@@ -54,17 +54,13 @@ Provides emergency SOS broadcasts, automated contact escalation, live dual-engin
   - Realistic cellular carrier subtitle ("Calling via Jio 5G" / "Calling via Airtel 5G").
   - Simulated active call interface with live timer, dial pad, mute/speaker toggles, and Indian English Text-to-Speech voice script.
 - **`screens.contacts.TrustedContactsScreen` & `TrustedContactsViewModel`**: Contact priority hierarchy management with native contact picker, phone number sanitization, and SOS broadcast list.
-- **`screens.settings.SettingsScreen` & `SettingsViewModel`**: Settings toggles (Shake detection, loud siren, escalation delay) and Guardian Device Pairing (view/copy/share safety code, enter ward code, active guardian links).
+- **`screens.settings.SettingsScreen` & `SettingsViewModel`**: Settings toggles (loud siren, escalation delay) and Guardian Device Pairing (view/copy/share safety code, enter ward code, active guardian links).
 - **`screens.notifications.NotificationsScreen` & `NotificationViewModel`**: Real-time notification inbox displaying emergency alerts, pair requests (with Accept/Decline actions), and status updates.
 
 ---
 
 ### 2. Services & Background Hardware (`com.womensafety.sos.service`)
-- **`SosTriggerHelper`**: Centralized, thread-safe dispatcher for initiating emergency workflows from any screen, background shake detector, or system event.
-- **`ShakeDetector`**: Precision hardware accelerometer detector:
-  - Vector acceleration analysis ($\sqrt{g_x^2 + g_y^2 + g_z^2} \ge 2.7g$).
-  - Debounced time window (minimum 1000ms cooldown) to prevent accidental pocket triggers.
-  - App-wide lifecycle integration in `MainActivity`.
+- **`SosTriggerHelper`**: Centralized, thread-safe dispatcher for initiating emergency workflows from any screen or system event.
 - **`EmergencyForegroundService`**: Sticky foreground service managing active emergencies:
   - High-accuracy Fused Location Provider with throttled Firestore location updates.
   - Background audio evidence recording with Firebase Storage upload on resolution.

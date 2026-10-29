@@ -21,6 +21,29 @@ object PhoneUtils {
     }
 
     /**
+     * Extracts exactly the 10-digit national number from an Indian phone input,
+     * stripping leading "+91", "91", or "0" if present.
+     * Prevents duplicate "+91" prefixing in UI text fields.
+     */
+    fun extract10DigitNumber(raw: String): String {
+        var trimmed = raw.trim()
+        if (trimmed.startsWith("+91")) {
+            trimmed = trimmed.removePrefix("+91")
+        } else if (trimmed.startsWith("+")) {
+            trimmed = trimmed.removePrefix("+")
+        }
+        val digits = trimmed.filter { it.isDigit() }
+        val nationalDigits = if (digits.length > 10 && digits.startsWith("91")) {
+            digits.removePrefix("91")
+        } else if (digits.length == 11 && digits.startsWith("0")) {
+            digits.removePrefix("0")
+        } else {
+            digits
+        }
+        return nationalDigits.take(10)
+    }
+
+    /**
      * Formats phone number for display (e.g. +91 98765 43210 or 98765 43210).
      */
     fun formatForDisplay(raw: String): String {

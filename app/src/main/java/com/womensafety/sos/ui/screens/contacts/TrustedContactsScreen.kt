@@ -423,8 +423,7 @@ fun TrustedContactsScreen(
                             OutlinedTextField(
                                 value = inputPhone,
                                 onValueChange = { raw ->
-                                    val digits = raw.filter { it.isDigit() }.take(10)
-                                    inputPhone = digits
+                                    inputPhone = PhoneUtils.extract10DigitNumber(raw)
                                 },
                                 label = { Text("10-Digit Mobile Number *") },
                                 placeholder = { Text("9876543210", color = Color.DarkGray) },
@@ -516,7 +515,8 @@ fun TrustedContactsScreen(
                             onClick = {
                                 attemptedSubmit = true
                                 if (isNameValid && isPhoneValid) {
-                                    viewModel.addContact(inputName, inputPhone, inputRelation)
+                                    val formattedPhone = if (inputPhone.length == 10) "+91$inputPhone" else inputPhone
+                                    viewModel.addContact(inputName, formattedPhone, inputRelation)
                                     showAddDialog = false
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar("Added $inputName to emergency contacts")
@@ -601,7 +601,7 @@ fun ContactItemCard(
                         }
                     }
                     Text(
-                        text = "${contact.relationship} • ${contact.phoneNumber}",
+                        text = "${contact.relationship} • ${PhoneUtils.formatForDisplay(contact.phoneNumber)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = JhumkaTextSecondary
                     )

@@ -41,7 +41,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Vibration
 
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -536,14 +535,6 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = JhumkaTextPrimary
-                )
-
-                SettingSwitchCard(
-                    title = "Shake to Trigger SOS",
-                    subtitle = "Rapidly shaking your phone will automatically launch emergency broadcast.",
-                    icon = Icons.Default.Vibration,
-                    checked = settings.shakeToTriggerEnabled,
-                    onCheckedChange = { viewModel.setShakeToTrigger(it) }
                 )
 
                 SettingSwitchCard(

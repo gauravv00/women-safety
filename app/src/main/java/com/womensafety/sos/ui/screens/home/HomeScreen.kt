@@ -167,13 +167,6 @@ fun HomeScreen(
         }
     }
 
-    DisposableEffect(Unit) {
-        viewModel.registerShakeDetector(context)
-        onDispose {
-            viewModel.unregisterShakeDetector()
-        }
-    }
-
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     Scaffold(

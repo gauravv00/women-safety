@@ -2,8 +2,6 @@ package com.womensafety.sos.ui.screens.home
 
 import android.content.Context
 import android.content.Intent
-import android.hardware.Sensor
-import android.hardware.SensorManager
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,7 +11,6 @@ import com.womensafety.sos.di.ServiceLocator
 import com.womensafety.sos.domain.repository.SafetyRepository
 import com.womensafety.sos.service.EmergencyForegroundService
 import com.womensafety.sos.service.EmergencySosService
-import com.womensafety.sos.service.ShakeDetector
 import com.womensafety.sos.service.SosTriggerHelper
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,9 +49,6 @@ class HomeViewModel(
     private val _showCallPanel = MutableStateFlow(false)
     val showCallPanel: StateFlow<Boolean> = _showCallPanel.asStateFlow()
 
-    private var shakeDetector: ShakeDetector? = null
-    private var sensorManager: SensorManager? = null
-
     fun triggerSos(context: Context, triggerSource: String = "MANUAL_HOLD") {
         SosTriggerHelper.triggerEmergency(context, triggerSource)
     }
@@ -89,26 +83,5 @@ class HomeViewModel(
 
     fun setShowCallPanel(show: Boolean) {
         _showCallPanel.value = show
-    }
-
-    fun registerShakeDetector(context: Context) {
-        val settings = ServiceLocator.userPreferences.settings.value
-        if (!settings.shakeToTriggerEnabled) return
-
-        sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
-        val accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-        shakeDetector = ShakeDetector {
-            if (activeIncident.value == null && !EmergencyForegroundService.isServiceRunning.value) {
-                triggerSos(context, "SHAKE")
-            }
-        }
-        accelerometer?.let {
-            sensorManager?.registerListener(shakeDetector, it, SensorManager.SENSOR_DELAY_UI)
-        }
-    }
-
-    fun unregisterShakeDetector() {
-        shakeDetector?.let { sensorManager?.unregisterListener(it) }
-        shakeDetector = null
     }
 }

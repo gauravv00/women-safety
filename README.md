@@ -19,12 +19,7 @@ A native Android women's safety and emergency SOS application engineered with **
 - **Dynamic 1-Tap Toggle**: Seamlessly switch between OpenStreetMap and Google Maps via the interactive provider chip.
 - **LRU Geocoding Cache**: High-speed reverse-geocoding with in-memory caching to prevent network latency and UI stalls during movement.
 
-### 2. App-Wide Hardware Shake-to-SOS
-- Calibrated hardware accelerometer listener utilizing vector g-force analysis ($\sqrt{g_x^2 + g_y^2 + g_z^2} \ge 2.7g$).
-- Debounced time windows prevent false positives from walking or pocket shifts.
-- Fires emergency broadcast across trusted contacts and guardian networks with haptic vibration confirmation.
-
-### 3. Hyper-Realistic Indian Fake Call Escape
+### 2. Hyper-Realistic Indian Fake Call Escape
 - Designed for discrete exits from unsafe or uncomfortable situations.
 - **Authentic Indian Presets**: Realistic phone numbers (`+91 98101 23456`, `+91 98202 34567`) and caller identities (`Mom`, `Papa`, `Rohit Verma`, `Office HR`, `Cab Driver`).
 - **Carrier Subtitles**: Displays realistic cellular badges (`Calling via Jio 5G`, `Calling via Airtel 5G`).
@@ -59,14 +54,13 @@ app/src/main/java/com/womensafety/sos/
 ├── service/                     # Background services & hardware integration
 │   ├── EmergencyForegroundService.kt  # Sticky service handling GPS, audio recording & siren
 │   ├── SosTriggerHelper.kt            # Centralized emergency dispatcher
-│   ├── ShakeDetector.kt               # Accelerometer vector sensor listener
 │   ├── NotificationHelper.kt          # System notification channels & banners
 │   └── AppFirebaseMessagingService.kt # FCM background notification receiver
 └── ui/                          # Jetpack Compose UI & ViewModels
     ├── components/              # SafetyMap, SosButton, EmergencyCallPanel, AppTopBar
     ├── screens/                 # Home, LiveTracking, FakeCall, Contacts, Settings, Notifications
     ├── theme/                   # Color.kt, Theme.kt, Type.kt (Dark Brutalist palette)
-    └── MainActivity.kt          # App entrypoint and Shake-to-SOS lifecycle binding
+    └── MainActivity.kt          # App entrypoint
 ```
 
 ---
@@ -140,7 +134,7 @@ The app features a **Dark Brutalist-Clean** visual language optimized for high v
    - A bell badge appears on top bar → Open **Notifications**.
    - Tap **Accept** on the pending pair request.
 4. **Emergency Simulation**:
-   - Device A triggers SOS (hold button for 2 seconds or shake phone 3 times).
+   - Device A triggers SOS (hold button for 2 seconds).
    - Device B immediately rings with a high-priority heads-up emergency notification displaying Ward's name, coordinates, and live tracking map link.
 
 ---

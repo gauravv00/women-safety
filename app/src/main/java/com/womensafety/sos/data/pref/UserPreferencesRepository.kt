@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
 
 data class SafetySettings(
-    val shakeToTriggerEnabled: Boolean = false,
     val loudSirenEnabled: Boolean = true,
     val autoCallTopContact: Boolean = true,
     val autoCallDelaySeconds: Int = 10,
@@ -33,7 +32,6 @@ class UserPreferencesRepository(context: Context) {
             prefs.edit().putString("my_pairing_code", code).apply()
         }
         return SafetySettings(
-            shakeToTriggerEnabled = prefs.getBoolean("shake_to_trigger", false),
             loudSirenEnabled = prefs.getBoolean("loud_siren", true),
             autoCallTopContact = prefs.getBoolean("auto_call_top", true),
             autoCallDelaySeconds = prefs.getInt("auto_call_delay", 10),
@@ -67,11 +65,6 @@ class UserPreferencesRepository(context: Context) {
     fun updateGuardianMonitoring(enabled: Boolean) {
         prefs.edit().putBoolean("guardian_monitoring_enabled", enabled).apply()
         _settings.value = _settings.value.copy(guardianMonitoringEnabled = enabled)
-    }
-
-    fun updateShakeToTrigger(enabled: Boolean) {
-        prefs.edit().putBoolean("shake_to_trigger", enabled).apply()
-        _settings.value = _settings.value.copy(shakeToTriggerEnabled = enabled)
     }
 
     fun updateLoudSiren(enabled: Boolean) {

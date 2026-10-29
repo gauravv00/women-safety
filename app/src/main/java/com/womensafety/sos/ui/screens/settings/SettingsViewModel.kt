@@ -50,8 +50,6 @@ class SettingsViewModel(
         }
     }
 
-    fun setShakeToTrigger(enabled: Boolean) { prefsRepository.updateShakeToTrigger(enabled) }
-
     fun setLoudSiren(enabled: Boolean) { prefsRepository.updateLoudSiren(enabled) }
 
     fun setAutoCallTopContact(enabled: Boolean) { prefsRepository.updateAutoCallTopContact(enabled) }

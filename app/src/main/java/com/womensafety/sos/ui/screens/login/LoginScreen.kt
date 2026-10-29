@@ -48,6 +48,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import com.womensafety.sos.data.util.PhoneUtils
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -870,8 +871,7 @@ private fun PhoneInputStep(
             OutlinedTextField(
                 value = phoneNumber,
                 onValueChange = { raw ->
-                    val digits = raw.filter { it.isDigit() }.take(10)
-                    onPhoneNumberChange(digits)
+                    onPhoneNumberChange(PhoneUtils.extract10DigitNumber(raw))
                 },
                 label = { Text("10-Digit Mobile Number") },
                 placeholder = { Text("9876543210") },

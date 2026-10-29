@@ -17,6 +17,7 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
+import com.womensafety.sos.data.util.PhoneUtils
 import com.womensafety.sos.di.ServiceLocator
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -48,7 +49,7 @@ class LoginViewModel : ViewModel() {
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    private val _phoneNumber = MutableStateFlow("+91")
+    private val _phoneNumber = MutableStateFlow("")
     val phoneNumber: StateFlow<String> = _phoneNumber.asStateFlow()
 
     private val _otpCode = MutableStateFlow("")
@@ -77,7 +78,7 @@ class LoginViewModel : ViewModel() {
     private var timerJob: Job? = null
 
     fun setPhoneNumber(phone: String) {
-        _phoneNumber.value = phone
+        _phoneNumber.value = PhoneUtils.extract10DigitNumber(phone)
     }
 
     fun setOtpCode(otp: String) {
@@ -277,30 +278,18 @@ class LoginViewModel : ViewModel() {
     }
 
     fun formatPhoneNumber(input: String): String {
-        var cleaned = input.replace(" ", "").replace("-", "").replace("(", "").replace(")", "").trim()
-        while (cleaned.startsWith("++")) {
-            cleaned = cleaned.substring(1)
-        }
-        if (cleaned.startsWith("+91+91")) {
-            cleaned = cleaned.replace("+91+91", "+91")
-        }
-        return when {
-            cleaned.startsWith("+") -> cleaned
-            cleaned.length == 10 -> "+91$cleaned"
-            cleaned.startsWith("91") && cleaned.length == 12 -> "+$cleaned"
-            cleaned.startsWith("0") && cleaned.length == 11 -> "+91${cleaned.substring(1)}"
-            else -> "+91$cleaned"
-        }
+        val digits = PhoneUtils.extract10DigitNumber(input)
+        return if (digits.length == 10) "+91$digits" else "+91${input.filter { it.isDigit() }}"
     }
 
     fun sendPhoneOtp(activity: Activity, isResend: Boolean = false) {
         val rawPhone = _phoneNumber.value.trim()
-        val digits = rawPhone.filter { it.isDigit() }
-        if (digits.length != 10 && !(digits.startsWith("91") && digits.length == 12)) {
+        val digits = PhoneUtils.extract10DigitNumber(rawPhone)
+        if (digits.length != 10) {
             _errorMessage.value = "Please enter an exact 10-digit mobile number"
             return
         }
-        val formattedPhone = formatPhoneNumber(rawPhone)
+        val formattedPhone = "+91$digits"
 
         _isLoading.value = true
         _errorMessage.value = null
