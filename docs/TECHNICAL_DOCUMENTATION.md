@@ -179,7 +179,96 @@ sequenceDiagram
 
 ---
 
-## 5. Directory Breakdown & File Index
+## 5. Android System Services, Background Processing & Kotlin Coroutines Architecture
+
+This project is built from the ground up to guarantee 100% reliability during life-critical emergencies. It leverages native Android framework services, hardware access layers, foreground lifecycles, and asynchronous Kotlin Coroutines.
+
+---
+
+### A. Android Framework System Services Used
+
+| System Service / Manager | Implementation Class | Life-Safety Purpose & Technical Operation |
+|---|---|---|
+| **`FusedLocationProviderClient` / `LocationManager`** | `LocationTracker.kt`, `EmergencyForegroundService.kt` | Requests high-accuracy GPS (`PRIORITY_HIGH_ACCURACY`) every 5000ms with a 2000ms fastest interval. Bypasses Android battery-saver throttling during active emergency sessions using foreground service elevation. |
+| **`TelecomManager` / `TelephonyManager`** | `EmergencyForegroundService.kt` | Initiates automated cellular phone calls (`TelecomManager.placeCall()`). Implements `TelephonyCallback.CallStateListener` (Android 12+) and `PhoneStateListener` (legacy) to detect call states: `CALL_STATE_RINGING`, `CALL_STATE_OFFHOOK` (answered), and `CALL_STATE_IDLE` (call ended/rejected) for sequential escalation. |
+| **`SmsManager`** | `SafetyRepositoryImpl.kt` | Offline failover mechanism. If internet is completely unavailable or Firestore times out, `SmsManager.getDefault().sendTextMessage()` dispatches an emergency SMS containing the live Google Maps coordinates link directly to all trusted contacts. |
+| **`PowerManager` (`WakeLock`)** | `EmergencyForegroundService.kt` | Acquires a `PowerManager.PARTIAL_WAKE_LOCK` tagged as `"womensafety:sos_wakelock"`. Keeps the device CPU awake, preventing Android Doze mode and App Standby from killing GPS telemetry and audio recording while the phone is locked or screen is off. |
+| **`AudioManager`** | `EmergencyForegroundService.kt` | Configures audio streams for emergency alert playback. Routes siren alarm to `AudioAttributes.USAGE_ALARM` / `STREAM_ALARM`, temporarily raising stream volume to maximum (100%) so that silent or Do-Not-Disturb modes do not silence the siren. |
+| **`NotificationManager` & Channels** | `NotificationHelper.kt` | Manages 3 distinct system channels: `emergency_channel` (Importance: `HIGH`, custom vibration `[0, 500, 200, 500]`, bypasses DND), `guardian_channel` (Importance: `DEFAULT`), and `general_channel`. Posts ongoing foreground notifications with embedded action PendingIntents ("Track on Map", "Stop SOS"). |
+| **`MediaRecorder`** | `AudioRecorderService.kt` | Captures high-fidelity ambient microphone evidence in AAC (`AUDIO_ENCODER_AAC`) inside an MPEG-4 container (`OUTPUT_FORMAT_MPEG_4`) at 44.1 kHz sampling rate. Files are saved directly to sandboxed app cache storage and dispatched to Firebase Storage. |
+| **`MediaPlayer`** | `EmergencyForegroundService.kt` | Low-latency audio playback for the looping alarm siren. Bound to `AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build()`. |
+| **`TextToSpeech` (TTS)** | `FakeCallViewModel.kt` | Synthesizes dynamic realistic voice responses during fake escape calls. Sets pitch and speech rate, outputs sound directly to `AudioAttributes.USAGE_VOICE_COMMUNICATION` (earpiece/receiver) to simulate an authentic two-way phone conversation. |
+| **`Vibrator` / `VibratorManager`** | `SosButton.kt` | Generates haptic tick feedback (`VibrationEffect.createPredefined(EFFECT_TICK)`) as the user holds the SOS button, culminating in an assertive double-buzz when the 2-second threshold is reached. |
+| **`Geocoder`** | `LocationAddressHelper.kt` | Translates live raw GPS latitude and longitude into physical street addresses and landmarks. Employs a thread-safe `LruCache` to avoid network rate-limiting. |
+
+---
+
+### B. Android Foreground Service & Background Execution Model
+
+Modern Android (Android 10 through Android 14+) strictly terminates background processes to conserve battery. The app satisfies all Android 14 (API 34) Foreground Service type policies:
+
+1. **`EmergencyForegroundService` (`Service.startForeground`)**:
+   * Declared in `AndroidManifest.xml` with multiple foreground service types:
+     `android:foregroundServiceType="location|microphone|phoneCall"`
+   * Bound with `START_STICKY`, guaranteeing that if the operating system kills the service under extreme RAM pressure, the OS restarts the service as soon as resources become available.
+   * Maintains an ongoing, un-swipeable system notification showing elapsed SOS time and a "STOP SOS" button.
+
+2. **`GuardianMonitorService`**:
+   * Runs in the background on guardian devices, listening to Firebase Realtime Database child nodes (`guardians/{pairingCode}`) and Firestore collection listeners.
+   * Fires a full heads-up notification and audio alarm on the guardian's phone immediately when a ward enters `status: "ACTIVE"`.
+
+3. **`AppFirebaseMessagingService` (`FirebaseMessagingService`)**:
+   * Handles cloud-to-device push events when the app is completely closed or killed.
+   * High-priority data payloads instantly wake the app process to present emergency alerts.
+
+---
+
+### C. Kotlin Coroutines & Reactive Concurrency Architecture
+
+The application avoids thread blocking and memory leaks through structured concurrency:
+
+#### 1. Coroutine Dispatchers Separation
+* **`Dispatchers.IO`**: Exclusively used for disk reads/writes (Room SQLite DB operations), network communication (Firestore queries, RTDB synchronization, Cloud Storage media uploads), Geocoder lookups, and file operations.
+* **`Dispatchers.Main`**: Drives UI rendering, Jetpack Compose recomposition triggers, and ViewModels emitting state to Compose.
+* **`Dispatchers.Default`**: Handles CPU-intensive tasks such as contact list sorting, data deduplication, and mathematical coordinate calculations.
+
+#### 2. Coroutine Scopes & Structured Lifecycles
+* **`viewModelScope`**: Tied to ViewModel lifecycles (`HomeScreen`, `EmergencyViewModel`, `LiveTrackingViewModel`). Automatically cancels active asynchronous tasks when the user navigates away from a screen, eliminating coroutine leaks.
+* **Service Coroutine Scope**: In `EmergencyForegroundService`, a custom scope is constructed:
+  ```kotlin
+  private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+  ```
+  `SupervisorJob` ensures that if one background task fails (e.g., a single location upload network timeout), sibling tasks (such as audio recording or calling) continue running uninterrupted.
+* **`ServiceLocator` / Singleton Scope**: Used in `FirebaseAuthManager` for background profile synchronization and token refresh without tying execution to an Activity.
+
+#### 3. Reactive Streams with `StateFlow` and `SharedFlow`
+* **`StateFlow<T>`**: Emits current state to Compose composables (e.g. `isEmergencyActive`, `contacts`, `unreadCount`).
+* **`stateIn` with `SharingStarted.WhileSubscribed(5000)`**: Ensures Firestore real-time listeners are only active while at least one UI composable is observing them, cleanly shutting down network subscriptions 5 seconds after the screen enters background.
+
+#### 4. Asynchronous Callback Bridging via `callbackFlow`
+Many native Android APIs (Firestore listeners, RTDB `ValueEventListener`, Phone State listeners) use event callbacks rather than suspending functions. The app converts these into reactive Kotlin Flows using `callbackFlow` and `awaitClose`:
+```kotlin
+override fun observeActiveEmergencies(): Flow<List<EmergencyEvent>> = callbackFlow {
+    val listener = firestore.collection("emergencies")
+        .whereIn("wardUid", chunks)
+        .whereEqualTo("status", "ACTIVE")
+        .addSnapshotListener { snapshot, error ->
+            if (error != null) return@addSnapshotListener
+            val events = snapshot?.documents?.mapNotNull { /* transform */ } ?: emptyList()
+            trySend(events)
+        }
+    awaitClose {
+        listener.remove() // Clean up listener when collector cancels
+    }
+}
+```
+
+#### 5. Google Play Services Task Interop (`tasks.await()`)
+* Through `kotlinx-coroutines-play-services`, callback-based `Task<T>` objects from Firebase (e.g. `auth.signInAnonymously().await()`, `document.set().await()`, `storageRef.downloadUrl.await()`) and Google Location APIs are transformed into clean, sequential, suspendable calls without callback nesting.
+
+---
+
+## 6. Directory Breakdown & File Index
 
 ```
 app/src/main/java/com/womensafety/sos/
@@ -252,7 +341,7 @@ app/src/main/java/com/womensafety/sos/
 
 ---
 
-## 6. Detailed File-by-File Code Rundown
+## 7. Detailed File-by-File Code Rundown
 
 ### A. Root Application & Entry Points
 
@@ -504,7 +593,7 @@ app/src/main/java/com/womensafety/sos/
 
 ---
 
-## 7. Build & Deployment Verification
+## 8. Build & Deployment Verification
 
 * **Kotlin Version**: 1.9.22
 * **Target SDK**: Android 34 (Android 14)
@@ -514,3 +603,4 @@ app/src/main/java/com/womensafety/sos/
   * Cloud Firestore: Copy [`firestore.rules`](file:///c:/Users/adity/OneDrive/Desktop/ADITYA%20DOX/Women_Safety/firestore.rules) to Firebase Console → Firestore → Rules → Publish.
   * Realtime Database: Copy [`database.rules.json`](file:///c:/Users/adity/OneDrive/Desktop/ADITYA%20DOX/Women_Safety/database.rules.json) to Firebase Console → Realtime Database → Rules → Publish.
   * Cloud Storage: Copy [`storage.rules`](file:///c:/Users/adity/OneDrive/Desktop/ADITYA%20DOX/Women_Safety/storage.rules) to Firebase Console → Storage → Rules → Publish.
+
