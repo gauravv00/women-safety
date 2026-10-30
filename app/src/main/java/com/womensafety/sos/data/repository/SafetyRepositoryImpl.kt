@@ -163,10 +163,36 @@ class SafetyRepositoryImpl(
 
     override suspend fun sendEmergencySmsToContacts(lat: Double, lng: Double, incidentId: Long): Unit = withContext(Dispatchers.IO) {
         val contacts = contactDao.getAllContactsList()
-        val mapsUrl = "https://maps.google.com/?q=$lat,$lng"
-        val message = "EMERGENCY SOS ALERT! I need help. My live location: $mapsUrl (Coordinates: $lat, $lng). Track me immediately!"
+        if (contacts.isEmpty()) {
+            Log.w(TAG, "No trusted contacts found to send emergency SMS")
+            return@withContext
+        }
 
-        val smsManager = try {
+        // Check SEND_SMS runtime permission before attempting dispatch
+        val hasSmsPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.SEND_SMS
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+        if (!hasSmsPermission) {
+            Log.e(TAG, "Cannot send emergency SMS: SEND_SMS permission is not granted")
+            return@withContext
+        }
+
+        val mapsUrl = if (lat != 0.0 && lng != 0.0) {
+            "https://maps.google.com/?q=$lat,$lng"
+        } else {
+            "Location unavailable"
+        }
+
+        val message = if (lat != 0.0 && lng != 0.0) {
+            "EMERGENCY SOS! I need help. My live location: $mapsUrl"
+        } else {
+            "EMERGENCY SOS! I am in danger and need immediate help. Please reach out to me immediately!"
+        }
+
+        // Robust SmsManager retrieval across all Android versions
+        val smsManager: SmsManager? = try {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                 context.getSystemService(SmsManager::class.java)
             } else {
@@ -174,19 +200,39 @@ class SafetyRepositoryImpl(
                 SmsManager.getDefault()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "SmsManager error: ${e.localizedMessage}")
-            null
+            Log.e(TAG, "Failed retrieving SmsManager: ${e.localizedMessage}")
+            try {
+                @Suppress("DEPRECATION")
+                SmsManager.getDefault()
+            } catch (fallbackEx: Exception) {
+                null
+            }
         }
+
+        if (smsManager == null) {
+            Log.e(TAG, "SmsManager is completely null on this device. Cannot send emergency SMS.")
+            return@withContext
+        }
+
+        Log.i(TAG, "Broadcasting emergency SMS to all ${contacts.size} trusted contacts. Location: ($lat, $lng)")
 
         contacts.forEach { contact ->
             val cleanPhone = PhoneUtils.sanitizePhoneNumber(contact.phoneNumber)
             if (cleanPhone.isNotBlank()) {
                 try {
-                    smsManager?.sendTextMessage(cleanPhone, null, message, null, null)
-                    Log.d(TAG, "Emergency SMS dispatched to $cleanPhone")
+                    // Use divideMessage + sendMultipartTextMessage to guarantee delivery even if carriers split messages
+                    val parts = smsManager.divideMessage(message)
+                    if (parts.size > 1) {
+                        smsManager.sendMultipartTextMessage(cleanPhone, null, parts, null, null)
+                    } else {
+                        smsManager.sendTextMessage(cleanPhone, null, message, null, null)
+                    }
+                    Log.i(TAG, "Emergency SMS with location successfully dispatched to ${contact.name} ($cleanPhone)")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed sending SMS to $cleanPhone: ${e.localizedMessage}")
+                    Log.e(TAG, "Failed sending emergency SMS to ${contact.name} ($cleanPhone): ${e.localizedMessage}", e)
                 }
+            } else {
+                Log.w(TAG, "Skipping empty/invalid phone number for contact ${contact.name}")
             }
         }
     }
