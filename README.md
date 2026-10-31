@@ -5,7 +5,8 @@
 </p>
 
 <p align="center">
-  <strong>Personal Safety, Rapid SOS Escalation & Real-Time Guardian Network</strong>
+  <strong>Personal Safety, Rapid SOS Escalation & Real-Time Guardian Network</strong><br/>
+  Made with ❤️ by <strong><a href="https://github.com/rajavikramaditya">Aditya Vikram</a></strong> & <strong><a href="https://github.com/gauravv00">Gaurav Verma</a></strong>
 </p>
 
 <p align="center">
@@ -182,6 +183,15 @@ Jhumka uses a defense-in-depth security model across **Firebase Authentication**
 Comprehensive technical documentation covering every file, function, architecture diagram, and system service is available in:
 * **Markdown**: [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md)
 * **Word Document**: [`docs/Women_Safety_Jhumka_Technical_Documentation.docx`](docs/Women_Safety_Jhumka_Technical_Documentation.docx)
+
+---
+
+## 👥 Authors & Maintainers
+
+Crafted with care for personal safety and life-critical emergency protection:
+
+* **Aditya Vikram** — [@rajavikramaditya](https://github.com/rajavikramaditya)
+* **Gaurav Verma** — [@gauravv00](https://github.com/gauravv00)
 
 ---
 
